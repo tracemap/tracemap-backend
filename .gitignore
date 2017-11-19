@@ -1,2 +1,5 @@
-api/twitterRequests/credentials.py
-api/twitterRequests/credentials.pyc
+/db
+/db/*
+*.pyc
+/api/token/__pycache__/
+/api/token/__pycache__/*

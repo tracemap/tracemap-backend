@@ -1,0 +1,15 @@
+version: '3'
+services:
+  web:
+    container_name: tracemap-api
+    build: .
+    ports:
+     - '5000:5000'
+    volumes:
+     - .:/usr/src/app
+  neo4j:
+    image: neo4j:3.0
+    ports:
+      - "17474:7474"
+    volumes:
+      - ./db/dbms:/data/dbms
