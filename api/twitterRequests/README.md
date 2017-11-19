@@ -2,7 +2,7 @@
 
 ### Ignored Files
 **credentials.py**
-(used as long as there 
+(used as long as there is no tokenRequest function serving the credentials from a database)
 ```python
 # Application token/secret
 APPLICATION = {
