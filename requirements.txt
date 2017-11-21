@@ -1,4 +1,3 @@
 Flask
 neo4j-driver
 TwitterAPI
-twitter
