@@ -88,11 +88,11 @@ def compare_uid_pid():
 ```
 **Describe non standart short forms with documentation**
 
-* Class names: CamelCase, with acronyms kept uppercase (HTTPWriter and not HttpWriter)
-* Variable names: lowercase_with_underscores
-* Method and function names: lowercase_with_underscores
-* Private function names: __lowercase_with_leading_double_underscore
-* Constants: UPPERCASE_WITH_UNDERSCORES
+* **Class names:** CamelCase, with acronyms kept uppercase (HTTPWriter and not HttpWriter)
+* **Variable names:** lowercase_with_underscores
+* **Method and function names:** lowercase_with_underscores
+* **Private function names:** __lowercase_with_leading_double_underscore
+* **Constants:** UPPERCASE_WITH_UNDERSCORES
 
 ## Docstrings & comments
 
@@ -125,3 +125,4 @@ class User(object):
     #: the sha1 hash of the password + inline salt
     pw_hash = Column(String)
 ```
+
