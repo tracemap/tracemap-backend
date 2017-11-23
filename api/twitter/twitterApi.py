@@ -6,56 +6,55 @@ from TwitterAPI import TwitterAPI
 from credentials import *
 
 
-credIndex = 0
+cred_index = 0
 
-api = TwitterAPI(APPLICATION['token'], APPLICATION['secret'], USERS[credIndex]['token'], USERS[credIndex]['secret'])
+api = TwitterAPI(APPLICATION['token'], 
+                 APPLICATION['secret'], 
+                 USERS[cred_index]['token'], 
+                 USERS[cred_index]['secret'])
 
-# Switch to the next user when running out of requests 
-def __changeCredentials():
+def __change_credentials():
     """Switch to the next user credentials if running out of requests"""
-    credIndex = (credIndex + 1) % len(USERS)   
-    twit = Twitter( format="json",
-        auth=OAuth(USERS[credIndex]['token'], USERS[credIndex]['secret'], APPLICATION['token'], APPLICATION['secret'] ))
+    cred_index = (credIndex + 1) % len(USERS)   
+    api = TwitterAPI(APPLICATION['token'], 
+                     APPLICATION['secret'], 
+                     USERS[cred_index]['token'], 
+                     USERS[cred_index]['secret'])
 
-def __formatUserInfo( data):
-    """Format getUserInfo data as a dictionary of relevant data"""
+def __format_user_info( data):
+    """Format get_user_info data as a dictionary of relevant data"""
     response = {}
     response[ data['id_str']] = {}
-    userDict = response[ data['id_str']]
-    userDict[ "timestamp"] = str(time.time())
-    userDict[ "name"] = str( data['name'])
-    userDict[ "screen_name"] = str( data['screen_name'])
-    userDict[ "location"] = str( data['location'])
-    userDict[ "lang"] = str(data['lang'])
-    userDict[ "followers_count"] = int(data['followers_count'])
-    userDict[ "friends_count"] = int(data['friends_count'])
-    userDict[ "statuses_count"] = int(data['statuses_count'])
-    userDict[ "created_at"] = str(data['created_at'])
-    userDict[ "profile_img_url"] = str(data['profile_image_url'])
+    user_dict = response[ data['id_str']]
+    user_dict[ "timestamp"] = str(time.time())
+    user_dict[ "name"] = str( data['name'])
+    user_dict[ "screen_name"] = str( data['screen_name'])
+    user_dict[ "location"] = str( data['location'])
+    user_dict[ "lang"] = str(data['lang'])
+    user_dict[ "followers_count"] = int(data['followers_count'])
+    user_dict[ "friends_count"] = int(data['friends_count'])
+    user_dict[ "statuses_count"] = int(data['statuses_count'])
+    user_dict[ "created_at"] = str(data['created_at'])
+    user_dict[ "profile_img_url"] = str(data['profile_image_url'])
     return( response)
 
 
-def getUserInfo( uid):
+def get_user_info( uid):
     """Request Useer Information, return a dictionary"""
     if type(uid) is str:
         data = api.request('users/show', {'user_id': uid})
-        return [__formatUserInfo(data.json())]
+        return [__format_user_info(data.json())]
     if type(uid) is list:
         results = []
         for id in uid:
             data = api.request('users/show',  {'user_id': id})
-            results.append( __formatUserInfo( data.json()))
+            results.append( __format_user_info( data.json()))
         return results
     else:
-        print("Invalid data, need string or list at getUserInfo")
+        print("Invalid data, need string or list at get_user_info")
         return ""
 
-def getRetweeters( tweetId):
+def get_retweeters( tweetId):
     """Request the 100 last retweet ids, return them as a list"""
     data = api.request('statuses/retweeters/ids', { 'id': str(tweetId)})
     return data.json()['ids']
-
-
-result = getUserInfo("1953985920")
-
-print( json.dumps(result, indent=2))
