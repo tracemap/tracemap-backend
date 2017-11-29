@@ -1,17 +1,15 @@
 import json
 import time
+import os
 
-from twitter import *
 from TwitterAPI import TwitterAPI
-from credentials import *
-
 
 cred_index = 0
 
-api = TwitterAPI(APPLICATION['token'], 
-                 APPLICATION['secret'], 
-                 USERS[cred_index]['token'], 
-                 USERS[cred_index]['secret'])
+api = TwitterAPI( os.environ.get('APP_TOKEN'), 
+                  os.environ.get('APP_SECRET'), 
+                  os.environ.get('USER_TOKEN'), 
+                  os.environ.get('USER_SECRET'))
 
 def __change_credentials():
     """Switch to the next user credentials if running out of requests"""
@@ -58,3 +56,5 @@ def get_retweeters( tweetId):
     """Request the 100 last retweet ids, return them as a list"""
     data = api.request('statuses/retweeters/ids', { 'id': str(tweetId)})
     return data.json()['ids']
+
+print(get_retweeters("935929980697145346"))
