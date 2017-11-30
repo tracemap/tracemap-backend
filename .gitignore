@@ -4,3 +4,4 @@
 /api/token/__pycache__/
 /api/token/__pycache__/*
 .env
+.cache/*
