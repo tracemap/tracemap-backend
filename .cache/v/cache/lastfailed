@@ -1,0 +1,4 @@
+{
+  "api-tests/twitter/test_twitter_api.py::TestTwitterApi::()": true,
+  "api-tests/twitter/test_twitter_api.py::TestTwitterApi::()::test_get_user_info": true
+}
