@@ -1,3 +1,4 @@
 Flask
 neo4j-driver
+pytest
 TwitterAPI
