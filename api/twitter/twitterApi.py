@@ -36,9 +36,8 @@ def __format_user_info( data):
     user_dict[ "profile_img_url"] = str(data['profile_image_url'])
     return( response)
 
-
 def get_user_info( uid):
-    """Request Useer Information, return a dictionary"""
+    """Request user information, return a dictionary"""
     if type(uid) is str:
         data = api.request('users/show', {'user_id': uid})
         return [__format_user_info(data.json())]
@@ -56,5 +55,3 @@ def get_retweeters( tweetId):
     """Request the 100 last retweet ids, return them as a list"""
     data = api.request('statuses/retweeters/ids', { 'id': str(tweetId)})
     return data.json()['ids']
-
-print(get_retweeters("935929980697145346"))
