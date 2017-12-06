@@ -1,8 +1,10 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 
 import api.twitter.twitterApi as twitterApi
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route('/twitter/get_retweeters/<string:tweet_id>')
 def twitter_get_retweeters(tweet_id):
