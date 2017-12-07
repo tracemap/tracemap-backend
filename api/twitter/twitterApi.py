@@ -36,6 +36,22 @@ def __format_user_info( data):
     user_dict[ "profile_img_url"] = str(data['profile_image_url'])
     return( response)
 
+def __format_tweet_info( data):
+    data = data[0]
+    response = {}
+    response[ data['id_str']] = {}
+    tweet_dict = response[ data['id_str']]
+    tweet_dict["reply_to"] = str( data['in_reply_to_status_id_str'])
+    tweet_dict["lang"] = str( data['lang'])
+    tweet_dict["author"] = str( data['user']['id_str'])
+    tweet_dict["fav_count"] = str( data['favorite_count'])
+    tweet_dict["retweet_count"] = str( data['retweet_count'])
+    tweet_dict["date"] = str( data['created_at'])
+    """The following values are lists"""
+    tweet_dict["hashtags"] = data['entities']['hashtags']
+    tweet_dict["user_mentions"] = data['entities']['user_mentions']
+    return( response)
+
 def get_user_info( uid):
     """Request user information, return a dictionary"""
     if type(uid) is str:
@@ -51,7 +67,16 @@ def get_user_info( uid):
         print("Invalid data, need string or list at get_user_info")
         return ""
 
-def get_retweeters( tweetId):
+def get_tweet_info( tweet_id):
+    """Request tweet information, return a dictionary"""
+    if type(tweet_id) is str:
+        data = api.request('statuses/lookup', {'id': tweet_id})
+        return [__format_tweet_info(data.json())]
+    else:
+        print("Invalid data, need string at get_tweet_info")
+        return ""
+
+def get_retweeters( tweet_id):
     """Request the 100 last retweet ids, return them as a list"""
-    data = api.request('statuses/retweeters/ids', { 'id': str(tweetId)})
+    data = api.request('statuses/retweeters/ids', { 'id': str(tweet_id)})
     return data.json()['ids']
