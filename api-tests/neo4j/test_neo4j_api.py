@@ -16,7 +16,6 @@ def test_get_followers():
         assert retweeter.isdigit()
     """Use the function get_followers to return a response dictionary"""
     followers_dictionary = neo4j.get_followers(retweeters)
-    print(followers_dictionary)
     """First, guarantee that it is a dictionary"""
     assert type(followers_dictionary) is dict
     for user in followers_dictionary.keys():
