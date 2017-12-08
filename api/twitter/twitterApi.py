@@ -79,4 +79,7 @@ def get_tweet_info( tweet_id):
 def get_retweeters( tweet_id):
     """Request the 100 last retweet ids, return them as a list"""
     data = api.request('statuses/retweeters/ids', { 'id': str(tweet_id)})
-    return data.json()['ids']
+    retweets = data.json()['ids']
+    for num in retweets:
+        num = str(num)
+    return retweets
