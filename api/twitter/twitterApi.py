@@ -21,9 +21,7 @@ def __change_credentials():
 
 def __format_user_info( data):
     """Format get_user_info data as a dictionary of relevant data"""
-    response = {}
-    response[ data['id_str']] = {}
-    user_dict = response[ data['id_str']]
+    user_dict = {}
     user_dict[ "timestamp"] = str(time.time())
     user_dict[ "name"] = str( data['name'])
     user_dict[ "screen_name"] = str( data['screen_name'])
@@ -34,13 +32,14 @@ def __format_user_info( data):
     user_dict[ "statuses_count"] = int(data['statuses_count'])
     user_dict[ "created_at"] = str(data['created_at'])
     user_dict[ "profile_img_url"] = str(data['profile_image_url'])
-    return( response)
+    return( user_dict)
 
 def __format_tweet_info( data):
     data = data[0]
     response = {}
-    response[ data['id_str']] = {}
-    tweet_dict = response[ data['id_str']]
+    response['response'] = {}
+    response['response'][ data['id_str']] = {}
+    tweet_dict = response['response'][ data['id_str']]
     tweet_dict["reply_to"] = str( data['in_reply_to_status_id_str'])
     tweet_dict["lang"] = str( data['lang'])
     tweet_dict["author"] = str( data['user']['id_str'])
@@ -52,31 +51,28 @@ def __format_tweet_info( data):
     tweet_dict["user_mentions"] = data['entities']['user_mentions']
     return( response)
 
-def get_user_info( uid):
+def get_user_info( uid_list):
     """Request user information, return a dictionary"""
-    if type(uid) is str:
-        data = api.request('users/show', {'user_id': uid})
-        return [__format_user_info(data.json())]
-    if type(uid) is list:
-        results = []
-        for id in uid:
-            data = api.request('users/show',  {'user_id': id})
-            results.append( __format_user_info( data.json()))
-        return results
-    else:
-        print("Invalid data, need string or list at get_user_info")
-        return ""
+    results = {}
+    results['response'] = {}
+    for id in uid_list:
+        data = api.request('users/show',  {'user_id': id})
+        results['response'][ str(id)] = __format_user_info( data.json())
+    return results
 
 def get_tweet_info( tweet_id):
     """Request tweet information, return a dictionary"""
-    if type(tweet_id) is str:
-        data = api.request('statuses/lookup', {'id': tweet_id})
-        return [__format_tweet_info(data.json())]
-    else:
-        print("Invalid data, need string at get_tweet_info")
-        return ""
+    data = api.request('statuses/lookup', {'id': tweet_id})
+    return __format_tweet_info(data.json())
 
 def get_retweeters( tweet_id):
     """Request the 100 last retweet ids, return them as a list"""
     data = api.request('statuses/retweeters/ids', { 'id': str(tweet_id)})
-    return data.json()['ids']
+    response = {}
+    response['response'] = data.json()['ids']
+    retweeters = response['response']
+    """change user_ids from num to string"""
+    for index, num in enumerate(retweeters):
+        retweeters[index] = str(num)
+    return response
+
