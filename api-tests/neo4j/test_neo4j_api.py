@@ -8,8 +8,8 @@ def test_get_followers():
     """Get all users that retweeted it as a list of uid strings"""
     retweeters = twitter.get_retweeters(tweet_id)
     """Guarantee that the returned value of the function is a list..."""
-    assert type(retweeters) is list
-    for retweeter in retweeters:
+    assert type(retweeters) is dict
+    for retweeter in retweeters['response']:
         """...whose elements are strings"""
         assert isinstance(retweeter, str) 
         """and that each string is, indeed, a positive number"""
