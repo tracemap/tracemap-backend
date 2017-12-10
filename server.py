@@ -17,10 +17,12 @@ def twitter_get_retweeters(tweet_id):
 def twitter_get_tweet_info(tweet_id):
     return jsonify(twitterApi.get_tweet_info(tweet_id))
 
-"""Takes a single user_id string and returns a user_info json object"""
-@app.route('/twitter/get_user_info/<string:user_id>')
-def twitter_get_user_info(user_id):
-    return jsonify(twitterApi.get_user_info(user_id))
+"""Takes a comma seperated list of user_ids
+    returns a user_info json object
+"""
+@app.route('/twitter/get_user_info/<string:user_ids>')
+def twitter_get_user_info(user_ids):
+    return jsonify(twitterApi.get_user_info(user_ids.split(",")))
 
 """Takes a comma seperated list of user_ids and returns the subnetwork of followship
    relations between those users
