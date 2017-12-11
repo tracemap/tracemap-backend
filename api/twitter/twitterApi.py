@@ -31,7 +31,7 @@ def __format_user_info( data):
     user_dict[ "friends_count"] = int(data['friends_count'])
     user_dict[ "statuses_count"] = int(data['statuses_count'])
     user_dict[ "created_at"] = str(data['created_at'])
-    user_dict[ "profile_img_url"] = str(data['profile_image_url'])
+    user_dict[ "profile_image_url"] = str(data['profile_image_url'])
     return( user_dict)
 
 def __format_tweet_info( data):
