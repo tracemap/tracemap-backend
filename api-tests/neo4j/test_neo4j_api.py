@@ -9,25 +9,27 @@ def test_get_followers():
     retweeters = twitter.get_retweeters(tweet_id)
     """Guarantee that the returned value of the function is a list..."""
     assert type(retweeters) is dict
-    for retweeter in retweeters['response']:
+    assert 'response' in retweeters
+    response = retweeters['response']
+    for retweeter in response:
         """...whose elements are strings"""
         assert isinstance(retweeter, str) 
         """and that each string is, indeed, a positive number"""
         assert retweeter.isdigit()
     """Use the function get_followers to return a response dictionary"""
-    followers_dictionary = neo4j.get_followers(retweeters)
+    followers_dictionary = neo4j.get_followers(response)
     """First, guarantee that it is a dictionary"""
     assert type(followers_dictionary) is dict
-    for user in followers_dictionary.keys():
+    assert 'response' in followers_dictionary
+    response = followers_dictionary['response']
+    for user in response.keys():
         """Guarantee that the keys correspond to elements in the retweeters"""
-        assert user in retweeters
-        """Check that the format of the dictionary is correct"""
-        assert "followers" in followers_dictionary[user].keys()
+        assert user in retweeters['response']
         """that under the 'followers' key one can access a list..."""
-        assert type(followers_dictionary[user]["followers"]) is list
-        for follower in followers_dictionary[user]["followers"]:
+        assert type(response[user]) is list
+        for follower in response[user]:
             """whose elements are also inside the retweeters list"""
-            assert follower in retweeters
+            assert follower in retweeters['response']
 
 def test_add_user_info():
     """Example of users already in the database for the test to work!!!"""
@@ -53,7 +55,7 @@ def test_get_user_info():
     user_info = neo4j.get_user_info(user_id)
     properties = ["timestamp","name","screen_name","location","lang",
                   "followers_count","friends_count","statuses_count",
-                  "created_at","profile_img_url","uid"]
+                  "created_at","profile_image_url","uid"]
     """Guarantee that the info is a dictionary"""
     assert type(user_info) is dict
     """Guarantee that 'response' is in the dictionary"""
