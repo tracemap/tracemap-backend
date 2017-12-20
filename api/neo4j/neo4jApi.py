@@ -58,10 +58,10 @@ def get_followers(user_ids):
         user = dictionary_lookup[relation.end]
         follower = dictionary_lookup[relation.start]
         if user not in followers_dictionary:
-            followers_dictionary.update({user:{'followers':[follower]}})
+            followers_dictionary.update({user:[follower]})
         else:
-            followers_dictionary[user]['followers'].append(follower)
-    return followers_dictionary
+            followers_dictionary[user].append(follower)
+    return {'response': followers_dictionary}
 
 """This function does not create new nodes, users must be in database already"""
 def add_user_info(user_info):
