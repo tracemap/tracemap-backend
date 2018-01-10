@@ -3,6 +3,12 @@ services:
   web:
     container_name: tracemap-api
     build: .
+    environment:
+      - neo4j_url=bolt://neo4j:7687
+      - neo4j_username=neo4j
+      - neo4j_password=tracemap
+      - twitter_token=mFSqdnDxaTgrPJdnQ32dlJeWx
+      - twitter_secret=849wDRvLHCWEZpXemd18A1qbfq9NiVQkpE2bFQU9ppxlKPJXzT
     ports:
      - '5000:5000'
     volumes:
