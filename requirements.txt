@@ -1,3 +1,5 @@
 Flask
+flask_cors
 neo4j-driver
+pytest
 TwitterAPI
