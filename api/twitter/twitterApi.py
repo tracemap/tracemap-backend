@@ -7,16 +7,16 @@ from TwitterAPI import TwitterAPI
 cred_index = 0
 
 api = TwitterAPI( os.environ.get('APP_TOKEN'), 
-                  os.environ.get('APP_SECRET'), 
-                  os.environ.get('USER_TOKEN'), 
+                  os.environ.get('APP_SECRET'),
+                  os.environ.get('USER_TOKEN'),
                   os.environ.get('USER_SECRET'))
 
 def __change_credentials():
     """Switch to the next user credentials if running out of requests"""
-    cred_index = (credIndex + 1) % len(USERS)   
-    api = TwitterAPI(APPLICATION['token'], 
-                     APPLICATION['secret'], 
-                     USERS[cred_index]['token'], 
+    cred_index = (credIndex + 1) % len(USERS)
+    api = TwitterAPI(APPLICATION['token'],
+                     APPLICATION['secret'],
+                     USERS[cred_index]['token'],
                      USERS[cred_index]['secret'])
 
 def __format_user_info( data):
@@ -75,4 +75,3 @@ def get_retweeters( tweet_id):
     for index, num in enumerate(retweeters):
         retweeters[index] = str(num)
     return response
-

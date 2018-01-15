@@ -18,8 +18,8 @@ class TwitterCrawler:
             )
         )
         self.db = self.driver.session()
-        self.token = os.environ.get('twitter_token')
-        self.secret = os.environ.get('twitter_secret')
+        self.token = os.environ.get('APP_TOKEN')
+        self.secret = os.environ.get('APP_SECRET')
 
     def start_crawling(self):
         twitterHelpers = self.__get_twitter_helpers()
@@ -37,6 +37,9 @@ class TwitterCrawler:
                 else:
                     print("Switching twitter helper.")
                     twitterHelper = twitterHelpers.pop()
+            elif response == "User not found" or response == "Suspended user":
+                self.__delete_twitter_user_from_queue(user["id"])
+                print("Deleting user id: " + user["id"] + " from users queue.")
             elif response is not False:
                 print(response)
 
@@ -71,7 +74,7 @@ class TwitterCrawler:
                     )
                 self.db.run(followersQuery)
                 self.db.run(query)
-                print("Users queue received ", followersCount, " twitter users.")
+                print("User with id: " + userId + " indexed.")
             elif "errors" in parsedResponse:
                 print(parsedResponse)
                 break;
@@ -155,15 +158,22 @@ class TwitterCrawler:
             "singleFollower": "CREATE " + query
         }.get(key, query + ", ")
 
+    def __create_user_followers_query(self, userId, followerId):
+        query = "MERGE (u:TwitterUser{id:'" + userId + "'}) "
+        query += "MERGE (f:TwitterUser{id:'" + followerId + "'}) "
+        query += "MERGE (u)<-[:FOLLOWS]-(f)"
+
+        return query
+
     def __create_user_followers_batch_query(
         self, key, userId, followerId, followersCount):
 
         if key == 0 and followersCount == 0:
             key = "singleFollower"
 
-        query = "MERGE (user"+str(key)+":TwitterUser{id:'" + userId + "'}) "
-        query += "MERGE (follower"+str(key)+":TwitterUser{id:'" + followerId + "'}) "
-        query += "MERGE (user"+str(key)+")<-[:FOLLOWS]-(follower"+str(key)+")"
+        query = "MERGE (u"+str(key)+":TwitterUser{id:'" + userId + "'}) "
+        query += "MERGE (f"+str(key)+":TwitterUser{id:'" + followerId + "'}) "
+        query += "MERGE (u"+str(key)+")<-[:FOLLOWS]-(f"+str(key)+")"
         return {
             followersCount: query,
             "singleFollower": query
