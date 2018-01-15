@@ -6,7 +6,7 @@ from TwitterAPI import TwitterAPI
 
 cred_index = 0
 
-api = TwitterAPI( os.environ.get('APP_TOKEN'), 
+api = TwitterAPI( os.environ.get('APP_TOKEN'),
                   os.environ.get('APP_SECRET'),
                   os.environ.get('USER_TOKEN'),
                   os.environ.get('USER_SECRET'))
