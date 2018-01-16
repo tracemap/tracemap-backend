@@ -15,7 +15,5 @@ RUN pip install -r requirements.txt
 
 ADD . /usr/src/app
 
-#Start flask dev server on port 5000
 CMD python server.py runserver -h 0.0.0.0
-#Start uwsgi production server on port 5100, needs nginx for routing requests
 CMD uwsgi --ini wsgi-conf.ini
