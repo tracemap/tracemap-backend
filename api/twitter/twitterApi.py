@@ -116,7 +116,7 @@ def get_user_info( uid_list):
 def get_tweet_info( tweet_id):
     """Request tweet information, return a dictionary"""
     data = api.request('statuses/lookup', {'id': tweet_id})
-    return data.json()
+    return __format_tweet_info(data.json())
 
 def get_retweeters( tweet_id):
     """Request the 100 last retweet ids, return them as a list"""
