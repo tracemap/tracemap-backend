@@ -19,6 +19,13 @@ def __change_credentials():
                      USERS[cred_index]['token'], 
                      USERS[cred_index]['secret'])
 
+def __parse_properties( data, keys):
+    response = {}
+    for key in keys:
+        response[key] = data[key]
+    return response
+
+
 def __format_user_info( data):
     """Format get_user_info data as a dictionary of relevant data"""
     user_dict = {}
@@ -51,6 +58,52 @@ def __format_tweet_info( data):
     tweet_dict["user_mentions"] = data['entities']['user_mentions']
     return( response)
 
+def __format_tweet_data( data):
+    response = {}
+    response['retweeter_ids'] = []
+    response['retweet_info'] = {}
+    tweet_info_keys = [
+        'id_str',
+        'created_at',
+        'lang',
+        'favorite_count',
+        'retweet_count',
+        'entities',
+        'source',
+        'text',
+        'is_quote_status',
+        'in_reply_to_status_id_str',
+        'in_reply_to_user_id_str'
+    ]
+    user_info_keys = [
+        'id_str',
+        'created_at',
+        'name',
+        'screen_name',
+        'description',
+        'favourites_count',
+        'followers_count',
+        'friends_count',
+        'profile_image_url_https',
+        'statuses_count',
+        'verified',
+        'location',
+        'lang'
+    ]
+    tmp = data[0]['retweeted_status']
+    response['tweet_info'] = __parse_properties(tmp, tweet_info_keys)
+    tmp = tmp['user']
+    response['tweet_info']['user'] = __parse_properties(tmp, user_info_keys)
+
+    for retweet in data:
+        retweet_dict = __parse_properties(retweet, tweet_info_keys)
+        tmp = retweet['user']
+        retweet_dict['user'] = __parse_properties(tmp, user_info_keys)
+        response['retweeter_ids'].append(tmp['id_str'])
+        response['retweet_info'][tmp['id_str']] = retweet_dict
+    return response
+        
+
 def get_user_info( uid_list):
     """Request user information, return a dictionary"""
     results = {}
@@ -63,7 +116,7 @@ def get_user_info( uid_list):
 def get_tweet_info( tweet_id):
     """Request tweet information, return a dictionary"""
     data = api.request('statuses/lookup', {'id': tweet_id})
-    return __format_tweet_info(data.json())
+    return data.json()
 
 def get_retweeters( tweet_id):
     """Request the 100 last retweet ids, return them as a list"""
@@ -76,3 +129,10 @@ def get_retweeters( tweet_id):
         retweeters[index] = str(num)
     return response
 
+def get_tweet_data( tweet_id):
+    """Request full tweet information, including retweet and user information"""
+    url = "statuses/retweets/:%s" % tweet_id
+    data = api.request(url, {'count': 100}).json()
+    results = {}
+    results['response'] = __format_tweet_data(data)
+    return results

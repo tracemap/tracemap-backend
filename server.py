@@ -17,6 +17,10 @@ def twitter_get_retweeters(tweet_id):
 def twitter_get_tweet_info(tweet_id):
     return jsonify(twitterApi.get_tweet_info(tweet_id))
 
+@app.route('/twitter/get_tweet_data/<string:tweet_id>')
+def twitter_get_tweet_data(tweet_id):
+    return jsonify(twitterApi.get_tweet_data(tweet_id))
+
 """Takes a comma seperated list of user_ids
     returns a user_info json object
 """
