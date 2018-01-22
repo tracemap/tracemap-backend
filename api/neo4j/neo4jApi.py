@@ -35,9 +35,16 @@ def __format_property_string(property_dictionary):
     property_string += '}'
     return property_string
 
+def __save_unknown_users(user_ids):
+    with open("unknown_users.txt", "a") as users_file:
+        for uid in user_ids:
+            users_file.write("%s\n" % uid)
+
+
 """This function gets all relations in the database between a set of users"""
 def get_followers(user_ids):
     followers_dictionary = {}
+    unknown_list = []
     database_query = ''
     first_iteration = True
     if len(user_ids) <= 1:
@@ -61,6 +68,10 @@ def get_followers(user_ids):
             followers_dictionary.update({user:[follower]})
         else:
             followers_dictionary[user].append(follower)
+    for uid in user_ids:
+        if uid not in followers_dictionary:
+            unknown_list.append(uid)
+    __save_unknown_users( unknown_list)
     return {'response': followers_dictionary}
 
 """This function does not create new nodes, users must be in database already"""
