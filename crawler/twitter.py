@@ -26,9 +26,9 @@ class TwitterCrawler:
         twitterHelper = twitterHelpers.pop()
 
         for user in self.__get_twitter_users_queue():
-            response = self.__validate_twitter_user(twitterHelper, user["id"])
-            if response is True:
-                self.__save_twitter_followers(twitterHelper, user["id"])
+            response = self.__get_twitter_user_metadata(twitterHelper, user["id"])
+            if type(response) == dict:
+                self.__save_twitter_followers(twitterHelper, user["id"], response)
                 self.__delete_twitter_user_from_queue(user["id"])
             elif response == "Switch helper" or response == "Cannot authenticate":
                 if len(twitterHelpers) == 0:
@@ -43,13 +43,8 @@ class TwitterCrawler:
             elif response is not False:
                 print(response)
 
-    def __save_twitter_followers(self, twitterHelper, userId):
-        api = TwitterAPI(
-            self.token,
-            self.secret,
-            twitterHelper["accessToken"],
-            twitterHelper["accessTokenSecret"]
-        )
+    def __save_twitter_followers(self, twitterHelper, userId, userData):
+        api = self.__get_twitter_api(twitterHelper)
 
         cursor = -1
         while cursor == -1:
@@ -61,21 +56,29 @@ class TwitterCrawler:
             })
 
             parsedResponse = json.loads(response.text)
-            if "ids" in parsedResponse:
+
+            if "ids" in parsedResponse and parsedResponse["ids"] != []:
                 followersCount = len(parsedResponse["ids"])
+                print(followersCount)
                 query = ""
                 followersQuery = ""
                 for key, followerId in enumerate(parsedResponse["ids"]):
+                    if len(followersQuery) > 8000:
+                        self.db.run(followersQuery)
+                        followersQuery = ""
+                        print("cleared memory in the loop.")
                     followersQuery += self.__create_user_followers_batch_query(
-                        key, userId, followerId, followersCount - 1
+                        key, userId, followerId, followersCount - 1, userData
                     )
                     query += self.__create_users_queue_batch_query(
                         key, followerId, followersCount - 1
                     )
-                self.db.run(followersQuery)
+                if len(followersQuery) > 0:
+                    self.db.run(followersQuery)
+                    print("executed after the loop.")
                 self.db.run(query)
-                print("User with id: " + userId + " indexed.")
-            elif "errors" in parsedResponse:
+                print("User with id: " + userId + " and followers:" + str(followersCount) + " indexed.")
+            elif "errors" in parsedResponse or "error" in parsedResponse:
                 print(parsedResponse)
                 break;
 
@@ -107,14 +110,11 @@ class TwitterCrawler:
         return usersQueue
 
     def __validate_twitter_user(self, twitterHelper, userId):
-        api = TwitterAPI(
-            self.token,
-            self.secret,
-            twitterHelper["accessToken"],
-            twitterHelper["accessTokenSecret"])
+        api = self.__get_twitter_api(twitterHelper)
 
         response = api.request(self.USERS_SHOW, {"user_id": userId})
         parsedResponse = json.loads(response.text)
+
         isValid = False
         if "status" in parsedResponse:
             isValid = self.__is_language_valid(parsedResponse["status"]["lang"])
@@ -124,6 +124,18 @@ class TwitterCrawler:
             )
 
         return isValid
+
+    def __get_twitter_user_metadata(self, twitterHelper, userId):
+        api = self.__get_twitter_api(twitterHelper)
+        response = api.request(self.USERS_SHOW, {"user_id": userId})
+        parsedResponse = json.loads(response.text)
+
+        if "errors" in parsedResponse or "error" in parsedResponse:
+            parsedResponse = self.__check_twitter_error_code(
+                parsedResponse["errors"][0]["code"]
+            )
+
+        return parsedResponse
 
     def __is_language_valid(self, language):
         return {
@@ -150,34 +162,48 @@ class TwitterCrawler:
         if key == 0 and followersCount == 0:
             key = "singleFollower"
 
-        query = "(:UsersQueue {id: '" + followerId + "'})"
+        query = "MERGE (u"+str(key)+":USER:UsersQueue {id: '" + followerId + "'})"
 
         return {
-            0: "CREATE " + query + ", ",
             followersCount: query,
-            "singleFollower": "CREATE " + query
-        }.get(key, query + ", ")
+            "singleFollower": query
+        }.get(key, query + " ")
 
-    def __create_user_followers_query(self, userId, followerId):
-        query = "MERGE (u:TwitterUser{id:'" + userId + "'}) "
-        query += "MERGE (f:TwitterUser{id:'" + followerId + "'}) "
+    def __create_user_followers_query(
+        self, userId, followerId, followersCount, userData):
+        query = "MERGE (u:USER{uid:'" + userId + "',"
+        query += " name: '" + userData["name"] + "',"
+        query += " followers_count: " + followersCount + ","
+        query += " created_at: TIMESTAMP()}) "
+        query += "MERGE (f:USER{uid:'" + followerId + "'}) "
         query += "MERGE (u)<-[:FOLLOWS]-(f)"
 
         return query
 
     def __create_user_followers_batch_query(
-        self, key, userId, followerId, followersCount):
+        self, key, userId, followerId, followersCount, userData):
 
         if key == 0 and followersCount == 0:
             key = "singleFollower"
 
-        query = "MERGE (u"+str(key)+":TwitterUser{id:'" + userId + "'}) "
-        query += "MERGE (f"+str(key)+":TwitterUser{id:'" + followerId + "'}) "
+        query = "MERGE (u"+str(key)+":USER{uid:'" + userId + "'})"
+        query += " SET u"+str(key)+" += {name: '" + userData["name"] + "',"
+        query += " followers_count: " + str(followersCount) + ","
+        query += " created_at: TIMESTAMP()} "
+        query += "MERGE (f"+str(key)+":USER{uid:'" + followerId + "'}) "
         query += "MERGE (u"+str(key)+")<-[:FOLLOWS]-(f"+str(key)+")"
+
         return {
             followersCount: query,
             "singleFollower": query
         }.get(key, query + " ")
+
+    def __get_twitter_api(self, twitterHelper):
+        return TwitterAPI(
+            self.token,
+            self.secret,
+            twitterHelper["accessToken"],
+            twitterHelper["accessTokenSecret"])
 
 tc = TwitterCrawler()
 tc.start_crawling()

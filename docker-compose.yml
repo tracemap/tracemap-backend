@@ -8,9 +8,13 @@ services:
     volumes:
      - .:/usr/src/app
     env_file: .env
+    links:
+      - neo4j:neo4j
   neo4j:
     image: neo4j:3.0
     ports:
       - "17474:7474"
     volumes:
       - ./db/dbms:/data/dbms
+    environment:
+      - JVM_OPTS=-Xmx12g -Xms12g -XX:MaxPermSize=1024m
