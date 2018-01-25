@@ -11,10 +11,10 @@ services:
     links:
       - neo4j:neo4j
   neo4j:
-    image: neo4j:3.0
+    image: neo4j:3.2.3
     ports:
       - "17474:7474"
+      - "7687:7687"
     volumes:
       - ./db/dbms:/data/dbms
-    environment:
-      - JVM_OPTS=-Xmx12g -Xms12g -XX:MaxPermSize=1024m
+      - ./docker/neo4j/conf:/var/lib/neo4j/conf
