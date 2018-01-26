@@ -68,9 +68,8 @@ def get_followers(user_ids):
             followers_dictionary.update({user:[follower]})
         else:
             followers_dictionary[user].append(follower)
-    for uid in user_ids:
-        if uid not in followers_dictionary:
-            unknown_list.append(uid)
+    ids_in_DB = [u.properties['uid'] for u in database_response[0]['us']]
+    unknown_list = list(set(user_ids).difference(set(ids_in_DB)))        
     __save_unknown_users( unknown_list)
     return {'response': followers_dictionary}
 
