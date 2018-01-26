@@ -44,7 +44,6 @@ def __save_unknown_users(user_ids):
 """This function gets all relations in the database between a set of users"""
 def get_followers(user_ids):
     followers_dictionary = {}
-    unknown_list = []
     database_query = ''
     first_iteration = True
     if len(user_ids) <= 1:
