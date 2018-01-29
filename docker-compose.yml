@@ -17,4 +17,7 @@ services:
       - "7687:7687"
     volumes:
       - ./db/dbms:/data/dbms
-      - ./docker/neo4j/conf:/var/lib/neo4j/conf
+      #- ./docker/neo4j/conf:/var/lib/neo4j/conf
+    environment:
+      - NEO4J_dbms_memory_heap_initial__size=7G
+      - NEO4J_dbms_memory_heap_max__size=7G

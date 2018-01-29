@@ -25,11 +25,19 @@ class TwitterCrawler:
         twitterHelpers = self.__get_twitter_helpers()
         twitterHelper = twitterHelpers.pop()
 
-        for user in self.__get_twitter_users_queue():
-            response = self.__get_twitter_user_metadata(twitterHelper, user["id"])
+        for userId in self.__get_twitter_users_queue():
+            response = self.__get_twitter_user_metadata(twitterHelper, userId)
             if type(response) == dict:
-                self.__save_twitter_followers(twitterHelper, user["id"], response)
-                self.__delete_twitter_user_from_queue(user["id"])
+                followersResponse = self.__save_twitter_followers(twitterHelper, userId, response)
+                if followersResponse == False:
+                    if len(twitterHelpers) == 0:
+                        print("Starting recursive crawling.")
+                        self.start_crawling()
+                    else:
+                        print("Switching twitter helper.")
+                        twitterHelper = twitterHelpers.pop()
+                else:
+                    self.__delete_twitter_user_from_queue(userId)
             elif response == "Switch helper" or response == "Cannot authenticate":
                 if len(twitterHelpers) == 0:
                     print("Starting recursive crawling.")
@@ -38,8 +46,8 @@ class TwitterCrawler:
                     print("Switching twitter helper.")
                     twitterHelper = twitterHelpers.pop()
             elif response == "User not found" or response == "Suspended user":
-                self.__delete_twitter_user_from_queue(user["id"])
-                print("Deleting user id: " + user["id"] + " from users queue.")
+                self.__delete_twitter_user_from_queue(userId)
+                print("Deleting user id: " + userId + " from users queue.")
             elif response is not False:
                 print(response)
 
@@ -54,35 +62,29 @@ class TwitterCrawler:
                 "count": 5000,
                 "stringify_ids": "true"
             })
-
             parsedResponse = json.loads(response.text)
-
             if "ids" in parsedResponse and parsedResponse["ids"] != []:
-                followersCount = len(parsedResponse["ids"])
-                print(followersCount)
-                query = ""
-                followersQuery = ""
-                for key, followerId in enumerate(parsedResponse["ids"]):
-                    if len(followersQuery) > 8000:
-                        self.db.run(followersQuery)
-                        followersQuery = ""
-                        print("cleared memory in the loop.")
-                    followersQuery += self.__create_user_followers_batch_query(
-                        key, userId, followerId, followersCount - 1, userData
-                    )
-                    query += self.__create_users_queue_batch_query(
-                        key, followerId, followersCount - 1
-                    )
-                if len(followersQuery) > 0:
-                    self.db.run(followersQuery)
-                    print("executed after the loop.")
-                self.db.run(query)
-                print("User with id: " + userId + " and followers:" + str(followersCount) + " indexed.")
+                followersQuery = self.__create_user_followers_query(
+                    userId, parsedResponse, userData
+                )
+                self.db.run(followersQuery)
+                print("User with id: " + userId + " and " + str(len(parsedResponse["ids"])) + " followers was indexed.")
             elif "errors" in parsedResponse or "error" in parsedResponse:
-                print(parsedResponse)
-                break;
+                errorResponse = ""
+                if "error" in parsedResponse:
+                    errorResponse = self.__check_twitter_error_code(
+                        parsedResponse["error"]
+                    )
+                else:
+                    errorResponse = self.__check_twitter_error_code(
+                        parsedResponse["errors"][0]["code"]
+                    )
+                if errorResponse == "Switch helper" or errorResponse == "Cannot authenticate" or errorResponse == "Unknown error":
+                    return False
 
             cursor = parsedResponse["next_cursor_str"]
+
+        return True
 
     def __get_twitter_helpers(self):
         twitterCredentials = []
@@ -103,33 +105,16 @@ class TwitterCrawler:
 
     def __get_twitter_users_queue(self):
         usersQueue = []
-        results = self.db.run("MATCH (n:UsersQueue) RETURN n.id as id")
+        results = self.db.run("MATCH (n:USER:UsersQueue) RETURN n.id as id")
         for user in results:
-            usersQueue.append({"id": user["id"]})
+            usersQueue.append(user["id"])
 
         return usersQueue
-
-    def __validate_twitter_user(self, twitterHelper, userId):
-        api = self.__get_twitter_api(twitterHelper)
-
-        response = api.request(self.USERS_SHOW, {"user_id": userId})
-        parsedResponse = json.loads(response.text)
-
-        isValid = False
-        if "status" in parsedResponse:
-            isValid = self.__is_language_valid(parsedResponse["status"]["lang"])
-        elif "errors" in parsedResponse:
-            isValid = self.__check_twitter_error_code(
-                parsedResponse["errors"][0]["code"]
-            )
-
-        return isValid
 
     def __get_twitter_user_metadata(self, twitterHelper, userId):
         api = self.__get_twitter_api(twitterHelper)
         response = api.request(self.USERS_SHOW, {"user_id": userId})
         parsedResponse = json.loads(response.text)
-
         if "errors" in parsedResponse or "error" in parsedResponse:
             parsedResponse = self.__check_twitter_error_code(
                 parsedResponse["errors"][0]["code"]
@@ -153,50 +138,28 @@ class TwitterCrawler:
         }.get(code, "Unknown error")
 
     def __delete_twitter_user_from_queue(self, id):
-        query = "MATCH (n:UsersQueue {id: '" + id + "'}) "
-        query += "DETACH DELETE n"
+        query = "MATCH (u:USER:UsersQueue {id: '" + id + "'}) "
+        query += "DETACH DELETE u"
         response = self.db.run(query)
         print("Twitter user with id: ", id, " deleted from users queue.")
 
-    def __create_users_queue_batch_query(self, key, followerId, followersCount):
-        if key == 0 and followersCount == 0:
-            key = "singleFollower"
-
-        query = "MERGE (u"+str(key)+":USER:UsersQueue {id: '" + followerId + "'})"
-
-        return {
-            followersCount: query,
-            "singleFollower": query
-        }.get(key, query + " ")
-
-    def __create_user_followers_query(
-        self, userId, followerId, followersCount, userData):
-        query = "MERGE (u:USER{uid:'" + userId + "',"
-        query += " name: '" + userData["name"] + "',"
-        query += " followers_count: " + followersCount + ","
-        query += " created_at: TIMESTAMP()}) "
-        query += "MERGE (f:USER{uid:'" + followerId + "'}) "
-        query += "MERGE (u)<-[:FOLLOWS]-(f)"
+    def __create_user_followers_query(self, userId, followers, userData):
+        query = "WITH " + str(followers["ids"]) + " AS followers "
+        query += "FOREACH (follower IN followers | "
+        query += "MERGE (u:USER{uid:'" + userId + "'})"
+        query += " SET u += {name: '" + userData["name"] + "',"
+        query += " friends_count: '" + str(userData["friends_count"]) + "',"
+        query += " profile_image_url: '" + userData["profile_image_url"] + "',"
+        query += " screen_name: '" + userData["screen_name"] + "',"
+        query += " statuses_count: '" + str(userData["statuses_count"]) + "',"
+        query += " verified: '" + str(userData["verified"]) + "',"
+        query += " followers_count: " + str(len(followers)) + ","
+        query += " created_at: TIMESTAMP()} "
+        query += "MERGE (f:USER{uid: follower}) "
+        query += "MERGE (u)<-[:FOLLOWS]-(f) "
+        query += "MERGE (q:USER:UsersQueue {id: follower}))"
 
         return query
-
-    def __create_user_followers_batch_query(
-        self, key, userId, followerId, followersCount, userData):
-
-        if key == 0 and followersCount == 0:
-            key = "singleFollower"
-
-        query = "MERGE (u"+str(key)+":USER{uid:'" + userId + "'})"
-        query += " SET u"+str(key)+" += {name: '" + userData["name"] + "',"
-        query += " followers_count: " + str(followersCount) + ","
-        query += " created_at: TIMESTAMP()} "
-        query += "MERGE (f"+str(key)+":USER{uid:'" + followerId + "'}) "
-        query += "MERGE (u"+str(key)+")<-[:FOLLOWS]-(f"+str(key)+")"
-
-        return {
-            followersCount: query,
-            "singleFollower": query
-        }.get(key, query + " ")
 
     def __get_twitter_api(self, twitterHelper):
         return TwitterAPI(
