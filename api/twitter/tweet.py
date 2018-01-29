@@ -14,10 +14,9 @@ default_params = {
     "dnt": True,
 }
 
-
-def get_html( tweetId):
+def get_html( tweet_id):
     params = default_params.copy()
-    params['url'] = params['url'] + tweetId
+    params['url'] = params['url'] + tweet_id
     params_string = urllib.parse.urlencode(params)
     url = base_url + "?" + params_string
     with urllib.request.urlopen(url) as response:
@@ -25,3 +24,20 @@ def get_html( tweetId):
         data_json = json.loads( data)
         html = data_json['html']
         return html;
+
+def get_timeline_html( user_id):
+    # Returns a users timeline
+    # Not usable right now because we need single tweet objects
+    # Lets keep it for later
+    params = {
+        "url":"https://twitter.com/TwitterDev/timelines/" + user_id,
+        "limit":20,
+        "omit_script":1,
+        "dnt": True
+    }
+    params_string = urllib.parse.urlencode(params)
+    url = base_url + "?" + params_string
+    with urllib.request.urlopen(url) as response:
+        data = response.read().decode('utf-8')
+        data_json = json.loads( data)
+        return data_json

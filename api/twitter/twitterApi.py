@@ -2,6 +2,8 @@ import json
 import time
 import os
 
+from . import tweet as tweetAPI
+
 from TwitterAPI import TwitterAPI
 
 cred_index = 0
@@ -102,6 +104,19 @@ def __format_tweet_data( data):
         response['retweeter_ids'].append(tmp['id_str'])
         response['retweet_info'][tmp['id_str']] = retweet_dict
     return response
+
+def __request_user_timeline( user_id, include_rts = True):
+    params = {
+        'user_id': user_id, 
+        'exclude_replies': False,
+        'count': 200
+    }
+    if not include_rts:
+        params['include_rts'] = False
+    url = "statuses/user_timeline";
+    data = api.request(url, params)
+    return data.json()
+
         
 
 def get_user_info( uid_list):
@@ -136,4 +151,31 @@ def get_tweet_data( tweet_id):
     results = {}
     results['response'] = __format_tweet_data(data)
     return results
+
+def get_user_timeline( user_id):
+    """Get the latest tweets of a user.
+       Returns up to 200 retweets in 4 categories."""
+
+    tweet_object = {}
+    tmp_tweets = __request_user_timeline( user_id)
+    response = {}
+    response['by_time'] = []
+    for tweet in tmp_tweets:
+        tmp_response = {}
+        tmp_response['id_str'] = tweet['id_str']
+        tmp_response['retweet_count'] = tweet['retweet_count']
+        tmp_response['retweeted'] = True
+        tmp_response['created_at'] = tweet['created_at']
+        if 'retweeted_status' not in tweet:
+            tmp_response['retweeted'] = False
+        response['by_time'].append(tmp_response)
+
+    response['by_retweets'] = sorted(response['by_time'], key=lambda tweet: tweet['retweet_count'], reverse=True)
+    response['by_time_no_rts'] = list(filter(
+        lambda x: not x['retweeted'], 
+        response['by_time']))
+    response['by_retweets_no_rts'] = list(filter(
+        lambda x: not x['retweeted'], 
+        response['by_retweets']))
+    return response
 
