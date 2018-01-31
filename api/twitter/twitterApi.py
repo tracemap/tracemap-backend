@@ -160,22 +160,23 @@ def get_user_timeline( user_id):
     tmp_tweets = __request_user_timeline( user_id)
     response = {}
     response['by_time'] = []
+    if 'errors' in tmp_tweets:
+        return tmp_tweets
     for tweet in tmp_tweets:
         tmp_response = {}
         tmp_response['id_str'] = tweet['id_str']
         tmp_response['retweet_count'] = tweet['retweet_count']
-        tmp_response['retweeted'] = True
         tmp_response['created_at'] = tweet['created_at']
-        if 'retweeted_status' not in tweet:
-            tmp_response['retweeted'] = False
+        if 'retweeted_status' in tweet:
+            tmp_response['retweeted'] = tweet['retweeted_status']['id_str'];
         response['by_time'].append(tmp_response)
 
     response['by_retweets'] = sorted(response['by_time'], key=lambda tweet: tweet['retweet_count'], reverse=True)
     response['by_time_no_rts'] = list(filter(
-        lambda x: not x['retweeted'], 
+        lambda x: 'retweeted' not in x, 
         response['by_time']))
     response['by_retweets_no_rts'] = list(filter(
-        lambda x: not x['retweeted'], 
+        lambda x: 'retweeted' not in x, 
         response['by_retweets']))
     return response
 
