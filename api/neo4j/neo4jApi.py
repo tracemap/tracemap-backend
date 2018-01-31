@@ -3,11 +3,12 @@ import json
 import time
 import os
 
+uri = os.environ.get('NEO4J_URI')
+driver = GraphDatabase.driver(uri, auth=(os.environ.get('NEO4J_USER'),
+                              os.environ.get('NEO4J_PASSWORD')))
+
 """This function accesses the database with a query 'request_string' """
 def __request_database(request_string):
-    uri = os.environ.get('NEO4J_URI')
-    driver = GraphDatabase.driver(uri, auth=(os.environ.get('NEO4J_USER'),
-                                  os.environ.get('NEO4J_PASSWORD')))
     with driver.session() as session:
         with session.begin_transaction() as transaction:
             return transaction.run(request_string).data()
@@ -35,11 +36,12 @@ def __format_property_string(property_dictionary):
     property_string += '}'
     return property_string
 
+"""This function creates new nodes to be crawled with high priority"""
 def __save_unknown_users(user_ids):
-    with open("unknown_users.txt", "a") as users_file:
-        for uid in user_ids:
-            users_file.write("%s\n" % uid)
-
+    for uid in user_ids:
+        __request_database("MERGE (n:USER{uid:'" + uid + "'}) " +
+                           "SET n :UsersQueue " +
+                           "SET n += {priority: 0}")
 
 """This function gets all relations in the database between a set of users"""
 def get_followers(user_ids):
