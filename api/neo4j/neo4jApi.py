@@ -26,6 +26,8 @@ def __format_property_string(property_dictionary):
         return '{}'
     property_string = '{'
     for key in property_dictionary.keys():
+        if key == 'uid' or key == 'priority':
+            continue
         value = property_dictionary[key]
         property_string += key + ': '
         if type(value) is str:
@@ -41,7 +43,7 @@ def __save_unknown_users(user_ids):
     for uid in user_ids:
         __request_database("MERGE (n:USER{uid:'" + uid + "'}) " +
                            "SET n :UsersQueue " +
-                           "SET n += {priority: 0}")
+                           "SET n += {priority: 1}")
 
 """This function gets all relations in the database between a set of users"""
 def get_followers(user_ids):
