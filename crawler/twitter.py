@@ -72,17 +72,17 @@ class TwitterCrawler:
 
             cursor = parsed_response["next_cursor"]
 
-        if followers is not []:
+        if len(followers) != 0:
             with self.driver.session() as session:
                 indexed_followers = self.__get_user_followers(user_id)
                 difference = set(indexed_followers) - set(followers)
                 log_message = "User ID: " + user_id + " indexed with " + str(len(followers)) + " indexed."
                 if len(difference) > 0 and len(indexed_followers) != 0:
                     session.write_transaction(self.__delete_user, user_id)
-                    session.write_transaction(self.__create_user_followers_query, user_id, followers, user_data)
+                    session.write_transaction(self.__save_user_followers, user_id, followers, user_data)
                     print(log_message)
-                elif indexed_followers is []:
-                    session.write_transaction(self.__create_user_followers_query, user_id, followers, user_data)
+                elif len(indexed_followers) == 0:
+                    session.write_transaction(self.__save_user_followers, user_id, followers, user_data)
                     print(log_message)
 
         return True
@@ -133,7 +133,15 @@ class TwitterCrawler:
         return current_followers
 
     @staticmethod
-    def __create_user_followers_query(tx, user_id, followers, user_data):
+    def __save_users_to_queue(tx, followers):
+        query = "WITH " + str(followers) + " AS followers "
+        query += "FOREACH (follower IN followers | "
+        query += "MERGE (q:USER:UsersQueue {id: follower}))"
+
+        tx.run(query)
+
+    @staticmethod
+    def __save_user_followers(tx, user_id, followers, user_data):
         query = "WITH " + str(followers) + " AS followers "
         query += "FOREACH (follower IN followers | "
         query += "MERGE (u:USER{uid:'" + user_id + "'})"
