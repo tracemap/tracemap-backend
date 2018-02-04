@@ -2,22 +2,31 @@ import json
 import time
 import os
 
+from . import tweet as tweetAPI
+
 from TwitterAPI import TwitterAPI
 
 cred_index = 0
 
-api = TwitterAPI( os.environ.get('APP_TOKEN'),
-                  os.environ.get('APP_SECRET'),
-                  os.environ.get('USER_TOKEN'),
+api = TwitterAPI( os.environ.get('APP_TOKEN'), 
+                  os.environ.get('APP_SECRET'), 
+                  os.environ.get('USER_TOKEN'), 
                   os.environ.get('USER_SECRET'))
 
 def __change_credentials():
     """Switch to the next user credentials if running out of requests"""
-    cred_index = (credIndex + 1) % len(USERS)
-    api = TwitterAPI(APPLICATION['token'],
-                     APPLICATION['secret'],
-                     USERS[cred_index]['token'],
+    cred_index = (credIndex + 1) % len(USERS)   
+    api = TwitterAPI(APPLICATION['token'], 
+                     APPLICATION['secret'], 
+                     USERS[cred_index]['token'], 
                      USERS[cred_index]['secret'])
+
+def __parse_properties( data, keys):
+    response = {}
+    for key in keys:
+        response[key] = data[key]
+    return response
+
 
 def __format_user_info( data):
     """Format get_user_info data as a dictionary of relevant data"""
@@ -51,6 +60,65 @@ def __format_tweet_info( data):
     tweet_dict["user_mentions"] = data['entities']['user_mentions']
     return( response)
 
+def __format_tweet_data( data):
+    response = {}
+    response['retweeter_ids'] = []
+    response['retweet_info'] = {}
+    tweet_info_keys = [
+        'id_str',
+        'created_at',
+        'lang',
+        'favorite_count',
+        'retweet_count',
+        'entities',
+        'source',
+        'text',
+        'is_quote_status',
+        'in_reply_to_status_id_str',
+        'in_reply_to_user_id_str'
+    ]
+    user_info_keys = [
+        'id_str',
+        'created_at',
+        'name',
+        'screen_name',
+        'description',
+        'favourites_count',
+        'followers_count',
+        'friends_count',
+        'profile_image_url_https',
+        'statuses_count',
+        'verified',
+        'location',
+        'lang'
+    ]
+    tmp = data[0]['retweeted_status']
+    response['tweet_info'] = __parse_properties(tmp, tweet_info_keys)
+    tmp = tmp['user']
+    response['tweet_info']['user'] = __parse_properties(tmp, user_info_keys)
+
+    for retweet in data:
+        retweet_dict = __parse_properties(retweet, tweet_info_keys)
+        tmp = retweet['user']
+        retweet_dict['user'] = __parse_properties(tmp, user_info_keys)
+        response['retweeter_ids'].append(tmp['id_str'])
+        response['retweet_info'][tmp['id_str']] = retweet_dict
+    return response
+
+def __request_user_timeline( user_id, include_rts = True):
+    params = {
+        'user_id': user_id, 
+        'exclude_replies': False,
+        'count': 200
+    }
+    if not include_rts:
+        params['include_rts'] = False
+    url = "statuses/user_timeline";
+    data = api.request(url, params)
+    return data.json()
+
+        
+
 def get_user_info( uid_list):
     """Request user information, return a dictionary"""
     results = {}
@@ -75,3 +143,40 @@ def get_retweeters( tweet_id):
     for index, num in enumerate(retweeters):
         retweeters[index] = str(num)
     return response
+
+def get_tweet_data( tweet_id):
+    """Request full tweet information, including retweet and user information"""
+    url = "statuses/retweets/:%s" % tweet_id
+    data = api.request(url, {'count': 100}).json()
+    results = {}
+    results['response'] = __format_tweet_data(data)
+    return results
+
+def get_user_timeline( user_id):
+    """Get the latest tweets of a user.
+       Returns up to 200 retweets in 4 categories."""
+
+    tweet_object = {}
+    tmp_tweets = __request_user_timeline( user_id)
+    response = {}
+    response['by_time'] = []
+    if 'errors' in tmp_tweets:
+        return tmp_tweets
+    for tweet in tmp_tweets:
+        tmp_response = {}
+        tmp_response['id_str'] = tweet['id_str']
+        tmp_response['retweet_count'] = tweet['retweet_count']
+        tmp_response['created_at'] = tweet['created_at']
+        if 'retweeted_status' in tweet:
+            tmp_response['retweeted'] = tweet['retweeted_status']['id_str'];
+        response['by_time'].append(tmp_response)
+
+    response['by_retweets'] = sorted(response['by_time'], key=lambda tweet: tweet['retweet_count'], reverse=True)
+    response['by_time_no_rts'] = list(filter(
+        lambda x: 'retweeted' not in x, 
+        response['by_time']))
+    response['by_retweets_no_rts'] = list(filter(
+        lambda x: 'retweeted' not in x, 
+        response['by_retweets']))
+    return response
+
