@@ -136,7 +136,7 @@ class TwitterCrawler:
     def __save_users_to_queue(tx, followers):
         query = "WITH " + str(followers) + " AS followers "
         query += "FOREACH (follower IN followers | "
-        query += "MERGE (q:USER:UsersQueue {id: follower}))"
+        query += "MERGE (q:USER:UsersQueue {uid: follower}))"
 
         tx.run(query)
 
