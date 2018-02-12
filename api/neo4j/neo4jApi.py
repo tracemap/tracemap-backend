@@ -91,3 +91,11 @@ def get_user_info(user_id):
     return {'response':{user_id:database_response[0]['user'].properties}}
 
 
+def get_crawled_users(user_ids):
+    user_list = []
+    if len(user_ids) < 1:
+        return user_list
+    for user_id in user_ids:
+        database_query = 'MATCH (user:USER {uid: "'+user_id+'"}) ' +\
+        # if user has any followers in the database, add user_id to user_list
+    return user_list
