@@ -96,6 +96,8 @@ def get_crawled_users(user_ids):
     if len(user_ids) < 1:
         return user_list
     for user_id in user_ids:
-        database_query = 'MATCH (user:USER {uid: "'+user_id+'"}) ' +\
-        # if user has any followers in the database, add user_id to user_list
+        database_query = "MATCH (a:USER{uid:'" + user_id + "'}) " + "OPTIONAL MATCH (a)<-[:FOLLOWS]-(b) " + "RETURN count(b)"
+        number_followers = __request_database(database_query)[0]['count(b)']
+        if number_followers > 0:
+            user_list.append(user_id)
     return user_list
