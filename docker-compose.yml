@@ -9,15 +9,9 @@ services:
     volumes:
      - .:/usr/src/app
     env_file: .env
-    links:
-      - neo4j:neo4j
   neo4j:
-    image: neo4j:3.2.3
+    image: neo4j:3.0
     ports:
       - "17474:7474"
-      - "7687:7687"
     volumes:
       - ./db/dbms:/data/dbms
-    environment:
-      - NEO4J_dbms_memory_heap_initial__size=7G
-      - NEO4J_dbms_memory_heap_max__size=7G
