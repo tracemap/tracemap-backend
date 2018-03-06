@@ -1,76 +1,67 @@
 import queue
-from threading import Thread
 import random
+import multiprocessing
 from neo4j.v1 import GraphDatabase, basic_auth
 import time
+import os
 
-t0 = time.time()
+from twitter import TwitterCrawler
 
 uri = os.environ.get('neo4j_url')
-driver = GraphDatabase.driver(uri, auth=(os.environ.get('neo4j_username'),
-                                         os.environ.get('neo4j_password')))
+driver = GraphDatabase.driver(
+    os.environ.get('NEO4J_URI'), auth=(
+        os.environ.get('NEO4J_USER'),
+        os.environ.get('NEO4J_PASSWORD')
+        )
+    )
 
 def get_unfinished_list():
-    with driver.session() as session:
-        with session.begin_transaction() as tx:
-            response = tx.run('MATCH (a:USER:UsersQueue) ' +
-                              'RETURN a').data()
-            users_list = [(0,
-                           node['a'].properties['uid']) for node in response]
-            return users_list
+    query = "MATCH (a:USER:QUEUED) "
+    query += "RETURN a.uid as uid"
+    with driver.session() as db:
+        lock.acquire()
+        results = db.run(query)
+        lock.release()
+        user_list = []
+        for user in results:
+            user_list.append(user['uid'])
+        return user_list
+
+
 
 def get_priority_users(batch_size):
-    with driver.session() as session:
-        with session.begin_transaction() as tx:
-            response = tx.run('MATCH (a:USER) WHERE NOT a:UsersQueue ' +
-                              'RETURN a ORDER BY a.priority ' +
-                              'LIMIT ' + str(batch_size)).data()
-            users_list = [(node['a'].properties['priority'],
-                           node['a'].properties['uid']) for node in response]
-            for user in users_list:
-                tx.run('MATCH (a:USER{uid:"'+user[1]+'"}) SET a:UsersQueue')
-            return users_list
+    print("### Filling queue...")
+    query = "MATCH (a:USER) WHERE NOT a:QUEUED "
+    query += "WITH a "
+    query += "ORDER BY a.timestamp ASC "
+    query += "LIMIT %s " % batch_size
+    query += "SET a:QUEUED "
+    query += "RETURN a.uid as uid"
 
-def remove_label(uid):
-    with driver.session() as session:
-        with session.begin_transaction() as tx:
-            tx.run('MATCH (a:USER:UsersQueue{uid:"'+uid+'"}) ' +
-                   'REMOVE a:UsersQueue')   
-
-def crawl(user):
-    """get token, API Request, get info, update database ->
-    delete node if it doesn't exist anymore, 
-    delete old relations, create new relations,
-    check for errors, update 'priority' property of the node in the DB
-    with time.time() if crawl was successful, otherwise leave it as is."""
-    time.sleep(10*random.random())
-
-
-def crawler(q):
-    global threads
-    while True:
-        user = q.get()
-        crawl(user[1])
-        remove_label(user[1])
-        q.task_done()
-
+    with driver.session() as db:
+        lock.acquire()
+        results = db.run(query)
+        lock.release()
+        user_list = []
+        for user in results:
+            user_list.append(user['uid'])
+        return user_list   
 
 queue_size = 100
-batch_size = 500
-num_crawlers = 30
+batch_size = 200
+num_crawlers = 7
 
-q = queue.PriorityQueue(queue_size)
+q = multiprocessing.Queue(queue_size)
+lock = multiprocessing.Lock()
 
 for i in range(num_crawlers):
-    Crawler = Thread(target=crawler, args=(q,))
-    Crawler.daemon = True
-    Crawler.start()
+    crawler = multiprocessing.Process(target=TwitterCrawler, args=(q, lock))
+    crawler.daemon = True
+    crawler.start()
 
 for unfinished in get_unfinished_list():
     q.put(unfinished)
 
 while True:
-    users = get_priority_users(batch_size)
-    for user in users:
+    for user in get_priority_users(batch_size):
         q.put(user)
-
