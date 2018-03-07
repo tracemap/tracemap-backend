@@ -7,7 +7,6 @@ import os
 
 from twitter import TwitterCrawler
 
-uri = os.environ.get('neo4j_url')
 driver = GraphDatabase.driver(
     os.environ.get('NEO4J_URI'), auth=(
         os.environ.get('NEO4J_USER'),
@@ -36,7 +35,7 @@ def get_priority_users(batch_size):
     query += "ORDER BY a.timestamp ASC "
     query += "LIMIT %s " % batch_size
     query += "SET a:QUEUED "
-    query += "RETURN a.uid as uid"
+    query += "RETURN a.uid as uid, a.timestamp as timestamp"
 
     with driver.session() as db:
         lock.acquire()
@@ -45,11 +44,12 @@ def get_priority_users(batch_size):
         user_list = []
         for user in results:
             user_list.append(user['uid'])
+            print("%s has timestamp: %s" % (user['uid'], user['timestamp']))
         return user_list   
 
 queue_size = 100
 batch_size = 200
-num_crawlers = 7
+num_crawlers = 5
 
 q = multiprocessing.Queue(queue_size)
 lock = multiprocessing.Lock()

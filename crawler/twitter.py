@@ -45,10 +45,15 @@ class TwitterCrawler:
 
 
     def crawl(self, user_id):
-        if self.__is_user_valid( user_id):
-           self.__get_followers( user_id)
-        else:
+        valid_int = self.__is_user_valid( user_id)
+        if valid_int == 1:
+            self.__delete_connections( user_id)
+            print("%sCRAWLING:%s" % (self.color, user_id))
+            self.__get_followers( user_id)
+        elif valid_int == 0:
             self.__delete_user(user_id)
+        else:
+            self.__skip_user(user_id)
 
     def __is_user_valid(self, user_id):
         response = self.api.request(self.USERS_SHOW, {"user_id": user_id})
@@ -56,15 +61,16 @@ class TwitterCrawler:
         error_response = self.__check_error( parsed_response)
         if error_response:
             if error_response == 'invalid user':
-                return False
+                return 0
             elif error_response == 'continue':
                 return __is_user_valid(user_id)
             else:
                 print("%s%s" % (self.color, error_response))
+                return 0
         elif self.__is_language_valid(parsed_response["lang"]) is False:
-            return False
+            return -1
         else:
-            return True
+            return 1
 
     def __is_language_valid(self, language):
         return language in self.LANGUAGES
@@ -98,16 +104,15 @@ class TwitterCrawler:
             else:
                 cursor = 0;
 
-        if len(followers) != 0:
-            self.__update_followers( user_id, followers)
+        self.__update_followers( user_id, followers)
+
 
     def __update_followers(self, user_id, followers):
         # Some verbosity about the kind of db write
         num_followers = len(followers)
         self.__finish_user_update(user_id, followers)
-        num_db_followers = self.__get_num_db_followers( user_id)
-        print("%sFINISHED:%s num_db:%s num_crawled:%s" % 
-            (self.color, user_id, num_db_followers, num_followers))
+        print("%sFINISHED:%s num_followers:%s" % 
+            (self.color, user_id, num_followers))
 
 
     def __save_user_followers(self, user_id, followers):
@@ -116,8 +121,8 @@ class TwitterCrawler:
         query += "MERGE (u:USER{uid:'%s'}) " % user_id
         query += "FOREACH (follower IN followers | "
         query += "MERGE (f:USER{uid: follower}) "
+        query += "ON CREATE SET f.timestamp=2 "
         query += "MERGE (u)<-[:FOLLOWS]-(f)) "
-
 
         with self.driver.session() as db:
             self.lock.acquire()
@@ -126,25 +131,14 @@ class TwitterCrawler:
 
     def __finish_user_update(self, user_id, full_followers):
         timestamp = math.floor(time.time())
-        query = "WITH %s as followers " % full_followers
-        query += "MATCH (u:USER)<-[r:FOLLOWS]-(f:USER) "
-        query += "WHERE u.uid='%s' AND NOT f.uid IN followers " % user_id
-        query += "DELETE r"
-
-        ts_query = "MATCH (u:USER)<-[:FOLLOWS]-(f:USER) "
-        ts_query += "WHERE u.uid='%s' AND f.timestamp IS NULL " % user_id
-        ts_query += "SET f.timestamp=2"
-
-        rl_query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
-        rl_query += "SET a.timestamp=%s " % timestamp
-        rl_query += "REMOVE a:QUEUED"
+        query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
+        query += "SET a.timestamp=%s " % timestamp
+        query += "REMOVE a:QUEUED"
 
         with self.driver.session() as db:
             self.lock.acquire()
             print("%sFINISH-WRITING:%s..." % (self.color, user_id))
             db.run(query)
-            db.run(ts_query)
-            db.run(rl_query)
             self.lock.release()
 
 
@@ -153,6 +147,34 @@ class TwitterCrawler:
         print("%sDELETING:%s" % (self.color, user_id))
         query = "MATCH (u:USER {uid: '" + user_id + "'}) "
         query += "DETACH DELETE u"
+        with self.driver.session() as db:
+            self.lock.acquire()
+            db.run(query)
+            self.lock.release()
+
+    def __delete_connections(self, user_id):
+        while True:
+            print("%sREMOVING CONNECTIONS:%s" % (self.color, user_id))
+            query = "MATCH (u:USER {uid: '%s' })<-[r:FOLLOWS]-() " % user_id
+            query += "WITH r LIMIT 100000 "
+            query += "DELETE r "
+            query += "RETURN count(*)"
+            with self.driver.session() as db:
+                self.lock.acquire()
+                result = db.run(query)
+                self.lock.release()
+                if result.single()[0] == 0:
+                    break
+
+    def __skip_user(self, user_id):
+        #skipping users having the wrong language
+        #by setting their timestamp to a high number
+        present_time = math.floor(time.time())
+        future_time = present_time + (60 * 60 * 24 * 365 * 10) #10 years in the future
+        print("%sSKIPPING:%s" % (self.color, user_id))
+        query = "MATCH (u:USER {uid: '%s'}) " % user_id
+        query += "SET u.timestamp=%s " % future_time
+        query += "REMOVE u:QUEUED"
         with self.driver.session() as db:
             self.lock.acquire()
             db.run(query)
@@ -199,10 +221,10 @@ class TwitterCrawler:
             free_time = actual_time + (60 * 16)
             query = "MATCH (h:TOKEN) "
             query += "WHERE h.timestamp < %s " % actual_time
+            query += "WITH h LIMIT 1 "
             query += "SET h.timestamp=%s " % free_time
             query += "RETURN h.token as token, "
-            query += "h.secret as secret "
-            query += "LIMIT 1"
+            query += "h.secret as secret"
             with self.driver.session() as db:
                 results = db.run(query)
                 for user in results:
