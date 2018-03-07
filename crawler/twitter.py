@@ -13,6 +13,7 @@ class TwitterCrawler:
     LANGUAGES = ["de","en"];
     USERS_SHOW = "users/show";
     FOLLOWERS_IDS = "followers/ids";
+    RATE_LIMIT = "application/rate_limit_status"
 
     def __init__(self, q, lock):
         print("crawler is initialized with %s" % q)
@@ -56,7 +57,14 @@ class TwitterCrawler:
             self.__skip_user(user_id)
 
     def __is_user_valid(self, user_id):
-        response = self.api.request(self.USERS_SHOW, {"user_id": user_id})
+        while True:
+            try:
+                response = self.api.request(self.USERS_SHOW, {"user_id": user_id})
+            except:
+                print("%s###ERROR###: ConnectTimeout retrying..." % self.color)
+                time.sleep(10)
+                continue;
+            break;
         parsed_response = json.loads(response.text)
         error_response = self.__check_error( parsed_response)
         if error_response:
@@ -79,16 +87,25 @@ class TwitterCrawler:
         cursor = -1
         num_followers = 0
         while cursor != 0:
-            response = self.api.request(self.FOLLOWERS_IDS, {
-                "cursor": cursor,
-                "user_id": user_id,
-                "count": 5000,
-                "stringify_ids": "true"
-            })
+            while True:
+                try:
+                    response = self.api.request(self.FOLLOWERS_IDS, {
+                        "cursor": cursor,
+                        "user_id": user_id,
+                        "count": 5000,
+                        "stringify_ids": "true"
+                    })
+                except:
+                    print("%s###ERROR###: ConnectTimeout retrying..." % 
+                        self.color)
+                    time.sleep(10)
+                    continue;
+                break;
             parsed_response = json.loads(response.text)
             if "ids" in parsed_response and parsed_response["ids"] != []:
-                followers += parsed_response["ids"]
+                followers = parsed_response["ids"]
                 self.__save_user_followers(user_id, parsed_response["ids"])
+                num_followers += len(followers)
             else:
                 error_response = self.__check_error( parsed_response)
                 if error_response:
@@ -103,7 +120,6 @@ class TwitterCrawler:
                 cursor = parsed_response["next_cursor"]
             else:
                 cursor = 0;
-            num_followers += len(followers)
 
         self.__update_followers( user_id, num_followers)
 
@@ -214,17 +230,19 @@ class TwitterCrawler:
         }.get(code, "Unknown error %s" % code)
 
     def __get_user_auth(self):
+        if hasattr(self, 'api'):
+            self.__update_reset_time()
         # get new credentials from the db and block them
         # for 16m by setting the timestamp
+        user_token = ""
+        user_secret = ""
         while True:
-            user_token = ""
-            user_secret = ""
             actual_time = math.floor(time.time())
-            free_time = actual_time + (60 * 16)
+            guessed_free_time = actual_time + (60 * 16)
             query = "MATCH (h:TOKEN) "
             query += "WHERE h.timestamp < %s " % actual_time
             query += "WITH h LIMIT 1 "
-            query += "SET h.timestamp=%s " % free_time
+            query += "SET h.timestamp=%s " % guessed_free_time
             query += "RETURN h.token as token, "
             query += "h.secret as secret"
             with self.driver.session() as db:
@@ -239,8 +257,26 @@ class TwitterCrawler:
                 continue
             else:
                 break
+        self.user_token = user_token
         self.api = TwitterAPI(
             self.app_token,
             self.app_secret,
             user_token,
             user_secret)
+
+    def __update_reset_time(self):
+        #update timestamp to real reset time
+        while True:
+            try:
+                response = self.api.request(self.RATE_LIMIT, {
+                    "resources": "followers"
+                })
+            except:
+                print("%s###ERROR###: ConnectTimeout retrying..." % self.color)
+                time.sleep(10)
+                continue;
+            break;
+        parsed_response = json.loads(response.text)
+        reset_time = parsed_response['resources']['followers']['/followers/ids']['reset']
+        query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
+        query += "SET h.timestamp=%s" % reset_time
