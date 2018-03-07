@@ -77,7 +77,7 @@ class TwitterCrawler:
 
     def __get_followers(self, user_id):
         cursor = -1
-        followers = []
+        num_followers = 0
         while cursor != 0:
             response = self.api.request(self.FOLLOWERS_IDS, {
                 "cursor": cursor,
@@ -103,14 +103,14 @@ class TwitterCrawler:
                 cursor = parsed_response["next_cursor"]
             else:
                 cursor = 0;
+            num_followers += len(followers)
 
-        self.__update_followers( user_id, followers)
+        self.__update_followers( user_id, num_followers)
 
 
-    def __update_followers(self, user_id, followers):
+    def __update_followers(self, user_id, num_followers):
         # Some verbosity about the kind of db write
-        num_followers = len(followers)
-        self.__finish_user_update(user_id, followers)
+        self.__finish_user_update(user_id)
         print("%sFINISHED:%s num_followers:%s" % 
             (self.color, user_id, num_followers))
 
@@ -129,7 +129,7 @@ class TwitterCrawler:
             db.run(query)
             self.lock.release()
 
-    def __finish_user_update(self, user_id, full_followers):
+    def __finish_user_update(self, user_id):
         timestamp = math.floor(time.time())
         query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
         query += "SET a.timestamp=%s " % timestamp
@@ -214,6 +214,8 @@ class TwitterCrawler:
         }.get(code, "Unknown error %s" % code)
 
     def __get_user_auth(self):
+        # get new credentials from the db and block them
+        # for 16m by setting the timestamp
         while True:
             user_token = ""
             user_secret = ""
@@ -242,12 +244,3 @@ class TwitterCrawler:
             self.app_secret,
             user_token,
             user_secret)
-
-    def __get_num_db_followers(self, user_id):
-        # get num of db followers in the db
-        query = "MATCH (n:USER)<-[f:FOLLOWS]-(:USER) WHERE n.uid = '" + user_id + "' RETURN count(f)"
-        num_followers = 0
-        with self.driver.session() as db:
-            result = db.run(query)
-            num_followers = result.single()[0]
-        return num_followers
