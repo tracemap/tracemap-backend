@@ -18,9 +18,7 @@ def get_unfinished_list():
     query = "MATCH (a:USER:QUEUED) "
     query += "RETURN a.uid as uid"
     with driver.session() as db:
-        lock.acquire()
         results = db.run(query)
-        lock.release()
         user_list = []
         for user in results:
             user_list.append(user['uid'])
@@ -38,9 +36,7 @@ def get_priority_users(batch_size):
     query += "RETURN a.uid as uid, a.timestamp as timestamp"
 
     with driver.session() as db:
-        lock.acquire()
         results = db.run(query)
-        lock.release()
         user_list = []
         for user in results:
             user_list.append(user['uid'])
@@ -63,5 +59,8 @@ for unfinished in get_unfinished_list():
     q.put(unfinished)
 
 while True:
-    for user in get_priority_users(batch_size):
-        q.put(user)
+    if q.empty():
+        for user in get_priority_users(batch_size):
+            q.put(user)
+    else:
+        time.sleep(2)

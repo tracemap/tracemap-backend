@@ -85,7 +85,6 @@ class TwitterCrawler:
 
     def __get_followers(self, user_id):
         cursor = -1
-        num_followers = 0
         while cursor != 0:
             while True:
                 try:
@@ -105,7 +104,6 @@ class TwitterCrawler:
             if "ids" in parsed_response and parsed_response["ids"] != []:
                 followers = parsed_response["ids"]
                 self.__save_user_followers(user_id, parsed_response["ids"])
-                num_followers += len(followers)
             else:
                 error_response = self.__check_error( parsed_response)
                 if error_response:
@@ -121,7 +119,7 @@ class TwitterCrawler:
             else:
                 cursor = 0;
 
-        self.__update_followers( user_id, num_followers)
+        self.__update_followers( user_id, 0)
 
 
     def __update_followers(self, user_id, num_followers):
@@ -139,23 +137,15 @@ class TwitterCrawler:
         query += "MERGE (f:USER{uid: follower}) "
         query += "ON CREATE SET f.timestamp=2 "
         query += "MERGE (u)<-[:FOLLOWS]-(f)) "
-
-        with self.driver.session() as db:
-            self.lock.acquire()
-            db.run(query)
-            self.lock.release()
+        self.__run_query( query)
 
     def __finish_user_update(self, user_id):
         timestamp = math.floor(time.time())
         query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
         query += "SET a.timestamp=%s " % timestamp
         query += "REMOVE a:QUEUED"
-
-        with self.driver.session() as db:
-            self.lock.acquire()
-            print("%sFINISH-WRITING:%s..." % (self.color, user_id))
-            db.run(query)
-            self.lock.release()
+        print("%sFINISH-WRITING:%s..." % (self.color, user_id))
+        self.__run_query( query)
 
 
     def __delete_user(self, user_id):
@@ -163,24 +153,17 @@ class TwitterCrawler:
         print("%sDELETING:%s" % (self.color, user_id))
         query = "MATCH (u:USER {uid: '" + user_id + "'}) "
         query += "DETACH DELETE u"
-        with self.driver.session() as db:
-            self.lock.acquire()
-            db.run(query)
-            self.lock.release()
+        self.__run_query( query)
 
     def __delete_connections(self, user_id):
         while True:
-            print("%sREMOVING CONNECTIONS:%s" % (self.color, user_id))
             query = "MATCH (u:USER {uid: '%s' })<-[r:FOLLOWS]-() " % user_id
             query += "WITH r LIMIT 100000 "
             query += "DELETE r "
             query += "RETURN count(*)"
-            with self.driver.session() as db:
-                self.lock.acquire()
-                result = db.run(query)
-                self.lock.release()
-                if result.single()[0] == 0:
-                    break
+            result = self.__run_get_query( query)
+            if result == 0:
+                break
 
     def __skip_user(self, user_id):
         #skipping users having the wrong language
@@ -191,10 +174,7 @@ class TwitterCrawler:
         query = "MATCH (u:USER {uid: '%s'}) " % user_id
         query += "SET u.timestamp=%s " % future_time
         query += "REMOVE u:QUEUED"
-        with self.driver.session() as db:
-            self.lock.acquire()
-            db.run(query)
-            self.lock.release()
+        self.__run_query( query)
 
     def __check_error(self, response):
         error_response = "";
@@ -216,6 +196,40 @@ class TwitterCrawler:
                 return "invalid user"
             else:
                 return error_response
+
+    def __run_query(self, query):
+        with self.driver.session() as db:
+            while True:
+                try:
+                    db.run(query)
+                except Exception as ex:
+                    e_name = type(ex).__name__
+                    if e_name == "TransientError":
+                        print("%s######\nDB DATA IS LOCKED. Retrying...######\n######" % self.color)
+                        print("%s" % ex)
+                        time.sleep(2)
+                        continue
+                    else:                    
+                        print("%s######\n\n\n######\n\n\n%s\n\n\n%s" % (self.color, type(ex).__name__, ex))
+                break
+
+    def __run_get_query(self, query):
+        with self.driver.session() as db:
+            while True:
+                try:
+                    result = db.run(query)
+                except Exception as ex:
+                    e_name = type(ex).__name__
+                    if e_name == "TransientError":
+                        print("%s######\nDB DATA IS LOCKED. Retrying...######\n######" % self.color)
+                        print("%s" % ex)
+                        time.sleep(2)
+                        continue
+                    else:                    
+                        print("%s######\n\n\n######\n\n\n%s\n\n\n%s" % (self.color, type(ex).__name__, ex))
+                break
+            return result.single()[0]
+
 
     @staticmethod
     def __check_twitter_error_code(code):
@@ -277,6 +291,19 @@ class TwitterCrawler:
                 continue;
             break;
         parsed_response = json.loads(response.text)
-        reset_time = parsed_response['resources']['followers']['/followers/ids']['reset']
-        query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
-        query += "SET h.timestamp=%s" % reset_time
+        try:
+            reset_time = parsed_response['resources']['followers']['/followers/ids']['reset']
+            query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
+            query += "SET h.timestamp=%s" % reset_time
+            self.__run_query( query)
+        except:
+            if 'errors' in parsed_response:
+                print("%s" % parsed_response)
+                e_code = parsed_response['errors'][0]['code']
+                if e_code == 89:
+                    query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
+                    query += "DELETE h"
+                    self.__run_query( query)
+            else:
+                print("%s" % parsed_response)
+
