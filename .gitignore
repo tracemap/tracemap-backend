@@ -5,3 +5,5 @@
 /api/token/__pycache__/*
 .env
 .cache/*
+.idea/*
+packages/*

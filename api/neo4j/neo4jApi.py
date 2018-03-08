@@ -3,12 +3,11 @@ import json
 import time
 import os
 
-uri = os.environ.get('NEO4J_URI')
-driver = GraphDatabase.driver(uri, auth=(os.environ.get('NEO4J_USER'),
-                              os.environ.get('NEO4J_PASSWORD')))
-
 """This function accesses the database with a query 'request_string' """
 def __request_database(request_string):
+    uri = os.environ.get('NEO4J_URI')
+    driver = GraphDatabase.driver(uri, auth=(os.environ.get('NEO4J_USER'),
+                                  os.environ.get('NEO4J_PASSWORD')))
     with driver.session() as session:
         with session.begin_transaction() as transaction:
             return transaction.run(request_string).data()
@@ -26,8 +25,6 @@ def __format_property_string(property_dictionary):
         return '{}'
     property_string = '{'
     for key in property_dictionary.keys():
-        if key == 'uid' or key == 'priority':
-            continue
         value = property_dictionary[key]
         property_string += key + ': '
         if type(value) is str:
@@ -37,12 +34,6 @@ def __format_property_string(property_dictionary):
     property_string = property_string[:-2]
     property_string += '}'
     return property_string
-
-"""This function creates new nodes to be crawled with high priority"""
-def __save_unknown_users(user_ids):
-    for uid in user_ids:
-        __request_database("MERGE (n:USER{uid:'" + uid + "'}) " +
-                           "SET n += {priority: 1}")
 
 """This function gets all relations in the database between a set of users"""
 def get_followers(user_ids):
@@ -70,9 +61,6 @@ def get_followers(user_ids):
             followers_dictionary.update({user:[follower]})
         else:
             followers_dictionary[user].append(follower)
-    ids_in_DB = [u.properties['uid'] for u in database_response[0]['us']]
-    unknown_list = list(set(user_ids).difference(set(ids_in_DB)))        
-    __save_unknown_users( unknown_list)
     return {'response': followers_dictionary}
 
 """This function does not create new nodes, users must be in database already"""
@@ -103,13 +91,3 @@ def get_user_info(user_id):
     return {'response':{user_id:database_response[0]['user'].properties}}
 
 
-def get_crawled_users(user_ids):
-    user_list = []
-    if len(user_ids) < 1:
-        return user_list
-    for user_id in user_ids:
-        database_query = "MATCH (a:USER{uid:'" + user_id + "'}) " + "OPTIONAL MATCH (a)<-[:FOLLOWS]-(b) " + "RETURN count(b)"
-        number_followers = __request_database(database_query)[0]['count(b)']
-        if number_followers > 0:
-            user_list.append(user_id)
-    return user_list
