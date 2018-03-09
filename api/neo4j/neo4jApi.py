@@ -90,4 +90,11 @@ def get_user_info(user_id):
         return {}
     return {'response':{user_id:database_response[0]['user'].properties}}
 
-
+def crawl_unknown_users(user_ids):
+    unknown_users = []
+    for user in user_ids:
+        query = "MATCH (u:USER{uid:%s})<-[:FOLLOWS]-(p:USER) " % user
+        query += "RETURN p LIMIT 1"
+        database_response = __request_database(database_query).single()[0]
+        unknown_users.append(database_response)
+    return "%s" % unknown_users
