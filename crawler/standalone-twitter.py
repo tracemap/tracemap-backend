@@ -3,6 +3,7 @@ from TwitterAPI import TwitterAPI
 import json
 import os
 import time
+import sys
 import math
 import random
 import sty
@@ -15,8 +16,7 @@ class TwitterCrawler:
     FOLLOWERS_IDS = "followers/ids";
     RATE_LIMIT = "application/rate_limit_status"
 
-    def __init__(self, q, lock):
-        print("crawler is initialized with %s" % q)
+    def __init__(self):
         self.driver = GraphDatabase.driver(
             os.environ.get('NEO4J_URI'), auth=(
                 os.environ.get('NEO4J_USER'),
@@ -25,15 +25,12 @@ class TwitterCrawler:
         )
         self.app_token = os.environ.get('APP_TOKEN')
         self.app_secret = os.environ.get('APP_SECRET')
-        self.q = q
-        self.lock = lock;
         # Get color for print background
         r = random.randint(0,150)
         g = random.randint(0,150)
         b = random.randint(0,150)
         self.color = sty.bg(r,g,b)
         self.__get_user_auth()
-        self.run()
 
     def run(self):
         while True:
@@ -306,3 +303,4 @@ class TwitterCrawler:
                     self.__run_query( query)
             else:
                 print("%s" % parsed_response)
+
