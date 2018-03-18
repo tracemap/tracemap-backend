@@ -48,5 +48,10 @@ def neo4j_get_followers(user_ids):
 def neo4j_get_user_info(user_id):
     return jsonify(neo4jApi.get_user_info(user_id))
 
+@app.route('/neo4j/label_unknown_users/<string:user_ids>')
+def neo4j_label_unknown_users(user_ids):
+    neo4jApi.label_unknown_users(user_ids.split(","))
+    return "Done"
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)

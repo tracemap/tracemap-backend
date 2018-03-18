@@ -9,9 +9,3 @@ services:
     volumes:
      - .:/usr/src/app
     env_file: .env
-  neo4j:
-    image: neo4j:3.0
-    ports:
-      - "17474:7474"
-    volumes:
-      - ./db/dbms:/data/dbms
