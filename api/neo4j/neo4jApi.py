@@ -2,6 +2,7 @@ from neo4j.v1 import GraphDatabase, basic_auth
 import json
 import time
 import os
+import math
 
 """This function accesses the database with a query 'request_string' """
 def __request_database(request_string):
@@ -90,11 +91,20 @@ def get_user_info(user_id):
         return {}
     return {'response':{user_id:database_response[0]['user'].properties}}
 
-def crawl_unknown_users(user_ids):
+def label_unknown_users(user_ids):
+    time_now = math.floor(time.time())
+    one_month = 60 * 60 * 24 * 30
     unknown_users = []
     for user in user_ids:
-        query = "MATCH (u:USER{uid:%s})<-[:FOLLOWS]-(p:USER) " % user
-        query += "RETURN p LIMIT 1"
-        database_response = __request_database(database_query).single()[0]
-        unknown_users.append(database_response)
-    return "%s" % unknown_users
+        query = "MATCH (u:USER{uid:'%s'}) " % user
+        query += "WHERE u:QUEUED OR u.timestamp > %s " % (time_now - one_month)
+        query += "RETURN u.uid"
+        database_response = __request_database(query)
+        if len(database_response) == 0:
+            unknown_users.append(user)
+    label_query = "WITH %s as users " % unknown_users
+    label_query += "FOREACH (user IN users | "
+    label_query += "MERGE (u:USER{uid:user}) "
+    label_query += "SET u:QUEUED)"
+    __request_database(label_query)
+    return "done"

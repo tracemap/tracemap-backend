@@ -6,9 +6,6 @@ import time
 import sys
 import math
 import random
-import sty
-
-
 
 class TwitterCrawler:
     LANGUAGES = ["de","en"];
@@ -25,11 +22,6 @@ class TwitterCrawler:
         )
         self.app_token = os.environ.get('APP_TOKEN')
         self.app_secret = os.environ.get('APP_SECRET')
-        # Get color for print background
-        r = random.randint(0,150)
-        g = random.randint(0,150)
-        b = random.randint(0,150)
-        self.color = sty.bg(r,g,b)
         self.__get_user_auth()
 
     def run(self):
@@ -46,7 +38,6 @@ class TwitterCrawler:
         valid_int = self.__is_user_valid( user_id)
         if valid_int == 1:
             self.__delete_connections( user_id)
-            print("%sCRAWLING:%s" % (self.color, user_id))
             self.__get_followers( user_id)
         elif valid_int == 0:
             self.__delete_user(user_id)
@@ -58,7 +49,6 @@ class TwitterCrawler:
             try:
                 response = self.api.request(self.USERS_SHOW, {"user_id": user_id})
             except:
-                print("%s###ERROR###: ConnectTimeout retrying..." % self.color)
                 time.sleep(10)
                 continue;
             break;
@@ -70,7 +60,6 @@ class TwitterCrawler:
             elif error_response == 'continue':
                 return __is_user_valid(user_id)
             else:
-                print("%s%s" % (self.color, error_response))
                 return 0
         elif self.__is_language_valid(parsed_response["lang"]) is False:
             return -1
@@ -92,8 +81,6 @@ class TwitterCrawler:
                         "stringify_ids": "true"
                     })
                 except:
-                    print("%s###ERROR###: ConnectTimeout retrying..." % 
-                        self.color)
                     time.sleep(10)
                     continue;
                 break;
@@ -110,7 +97,7 @@ class TwitterCrawler:
                         self.__delete_user(user_id)
                         break
                     else:
-                        print("%s%s:%s" % (self.color, error_response, user_id))
+                        print("%s" % error_response)
             if 'next_cursor' in parsed_response:
                 cursor = parsed_response["next_cursor"]
             else:
@@ -122,8 +109,6 @@ class TwitterCrawler:
     def __update_followers(self, user_id, num_followers):
         # Some verbosity about the kind of db write
         self.__finish_user_update(user_id)
-        print("%sFINISHED:%s num_followers:%s" % 
-            (self.color, user_id, num_followers))
 
 
     def __save_user_followers(self, user_id, followers):
@@ -141,14 +126,12 @@ class TwitterCrawler:
         query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
         query += "SET a.timestamp=%s " % timestamp
         query += "REMOVE a:QUEUED"
-        print("%sFINISH-WRITING:%s..." % (self.color, user_id))
         self.__run_query( query)
 
 
     def __delete_user(self, user_id):
         #delete invalid user and connections
-        print("%sDELETING:%s" % (self.color, user_id))
-        query = "MATCH (u:USER {uid: '" + user_id + "'}) "
+        query = "MATCH (u:USER {uid: '%s'}) " % user_id
         query += "DETACH DELETE u"
         self.__run_query( query)
 
@@ -167,7 +150,6 @@ class TwitterCrawler:
         #by setting their timestamp to a high number
         present_time = math.floor(time.time())
         future_time = present_time + (60 * 60 * 24 * 365 * 10) #10 years in the future
-        print("%sSKIPPING:%s" % (self.color, user_id))
         query = "MATCH (u:USER {uid: '%s'}) " % user_id
         query += "SET u.timestamp=%s " % future_time
         query += "REMOVE u:QUEUED"
@@ -202,12 +184,11 @@ class TwitterCrawler:
                 except Exception as ex:
                     e_name = type(ex).__name__
                     if e_name == "TransientError":
-                        print("%s######\nDB DATA IS LOCKED. Retrying...######\n######" % self.color)
                         print("%s" % ex)
                         time.sleep(2)
                         continue
                     else:                    
-                        print("%s######\n\n\n######\n\n\n%s\n\n\n%s" % (self.color, type(ex).__name__, ex))
+                        print("%s" % ex)
                 break
 
     def __run_get_query(self, query):
@@ -218,12 +199,10 @@ class TwitterCrawler:
                 except Exception as ex:
                     e_name = type(ex).__name__
                     if e_name == "TransientError":
-                        print("%s######\nDB DATA IS LOCKED. Retrying...######\n######" % self.color)
-                        print("%s" % ex)
                         time.sleep(2)
                         continue
                     else:                    
-                        print("%s######\n\n\n######\n\n\n%s\n\n\n%s" % (self.color, type(ex).__name__, ex))
+                        print("%s" % ex)
                 break
             return result.single()[0]
 
@@ -262,8 +241,6 @@ class TwitterCrawler:
                     user_token = user["token"]
                     user_secret = user["secret"]
             if not user_token:
-                print(user_token)
-                print("%sAll token are busy, waiting..." % self.color)
                 time.sleep(60)
                 continue
             else:
@@ -283,7 +260,6 @@ class TwitterCrawler:
                     "resources": "followers"
                 })
             except:
-                print("%s###ERROR###: ConnectTimeout retrying..." % self.color)
                 time.sleep(10)
                 continue;
             break;
@@ -304,3 +280,5 @@ class TwitterCrawler:
             else:
                 print("%s" % parsed_response)
 
+crawler = TwitterCrawler()
+crawler.crawl(sys.argv[1])

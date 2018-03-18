@@ -27,25 +27,22 @@ def get_unfinished_list():
 
 
 def get_priority_users(batch_size):
-    print("### Filling queue...")
-    query = "MATCH (a:USER) WHERE NOT a:QUEUED "
+    query = "MATCH (a:USER:QUEUED)"
     query += "WITH a "
     query += "ORDER BY a.timestamp ASC "
     query += "LIMIT %s " % batch_size
-    query += "SET a:QUEUED "
-    query += "RETURN a.uid as uid, a.timestamp as timestamp"
+    query += "RETURN a.uid as uid"
 
     with driver.session() as db:
         results = db.run(query)
         user_list = []
         for user in results:
             user_list.append(user['uid'])
-            print("%s has timestamp: %s" % (user['uid'], user['timestamp']))
         return user_list   
 
 queue_size = 100
 batch_size = 200
-num_crawlers = 5
+num_crawlers = 1
 
 q = multiprocessing.Queue(queue_size)
 lock = multiprocessing.Lock()
@@ -60,7 +57,7 @@ for unfinished in get_unfinished_list():
 
 while True:
     if q.empty():
+        print("Searching priority users...")
         for user in get_priority_users(batch_size):
             q.put(user)
-    else:
-        time.sleep(2)
+    time.sleep(2)

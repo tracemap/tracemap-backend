@@ -81,7 +81,8 @@ class TwitterCrawler:
             return 1
 
     def __is_language_valid(self, language):
-        return language in self.LANGUAGES
+        #return language in self.LANGUAGES
+        return True
 
     def __get_followers(self, user_id):
         cursor = -1
