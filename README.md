@@ -34,8 +34,9 @@ curl "http://localhost:5000/neo4j/get_user_info/25073877" -v
 
 You can find all other API endpoints on the `server.py` file.
 
-If you need debugging, you can switch to the tracemap-api container with:
+If you need debugging, you can switch to the web or database containers with:
 
 ```
-docker exec -it tracemap-api bash
+docker-compose exec web bash
+docker-compose exec neo4j bash
 ```
