@@ -7,12 +7,20 @@ import os
 
 from twitter import TwitterCrawler
 
-driver = GraphDatabase.driver(
-    os.environ.get('NEO4J_URI'), auth=(
-        os.environ.get('NEO4J_USER'),
-        os.environ.get('NEO4J_PASSWORD')
-        )
-    )
+while True:
+    try:
+        driver = GraphDatabase.driver(
+            os.environ.get('NEO4J_URI'), auth=(
+                os.environ.get('NEO4J_USER'),
+                os.environ.get('NEO4J_PASSWORD')
+                )
+            )
+        print("Connected to the database.")
+        break
+    except:
+        print("Database not up or wrong credentials.. retrying...")
+        time.sleep(5)
+        continue
 
 def get_unfinished_list():
     query = "MATCH (a:USER:QUEUED) "
