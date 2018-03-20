@@ -25,13 +25,13 @@ docker-compose up --build
 You can check that the connection with twitter is working by executing:
 
 ```
-curl "http://localhost:5000/twitter/get_tweet_data/974276383051583488" -v
+curl "http://localhost:5000/twitter/get_tweet_data/947121935690944512" -v
 ```
 
 And you can check that the connection with neo4j is working by executing:
 
 ```
-curl "http://localhost:5000/neo4j/get_user_info/25073877" -v
+curl "http://localhost:5000/neo4j/get_user_info/870716233393614849" -v
 ```
 
 You can find all other API endpoints on the `server.py` file.
@@ -41,7 +41,7 @@ You can find all other API endpoints on the `server.py` file.
 Every time you call the /twitter/get_tweet_data endpoint, it populates the database with information about the tweet, but not the user followers connections. In order to populate this for a user you will need to call this endpoint:
 
 ```
-curl "http://localhost:5000/neo4j/label_unknown_users/25073877" -v
+curl "http://localhost:5000/neo4j/label_unknown_users/870716233393614849" -v
 ```
 
 This will queue the user to be crawled, then for building the twitter followers graph you will need to run the crawler, you can do that by adding your twitter tokens to the database and then running the crawler queue.
@@ -49,6 +49,12 @@ This will queue the user to be crawled, then for building the twitter followers 
 ```
 docker-compose exec web make add-token
 docker-compose exec web make run-crawler
+```
+
+Then you can check the user was actually crawled with:
+
+```
+curl "http://localhost:5000/neo4j/get_user_info/870716233393614849" -v
 ```
 
 ## Debugging
