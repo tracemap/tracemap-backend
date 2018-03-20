@@ -1,11 +1,13 @@
-# How to run the project
+# Tracemap Backend
+
+## How to run the project
 
 First you will need to configure your environment variables, create a file named `.env` on the root folder of the project with this content:
 
 ```
 NEO4J_URI=bolt://neo4j:7687/db/data/
-NEO4J_USER=
-NEO4J_PASSWORD=
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=root
 APP_TOKEN=<YOUR TWITTER APP TOKEN>
 APP_SECRET=<YOUR TWITTER APP SECRET>
 USER_TOKEN=<YOUR USER TOKEN>
@@ -33,6 +35,23 @@ curl "http://localhost:5000/neo4j/get_user_info/25073877" -v
 ```
 
 You can find all other API endpoints on the `server.py` file.
+
+## Crawling
+
+Every time you call the /twitter/get_tweet_data endpoint, it populates the database with information about the tweet, but not the user followers connections. In order to populate this for a user you will need to call this endpoint:
+
+```
+curl "http://localhost:5000/neo4j/label_unknown_users/25073877" -v
+```
+
+This will queue the user to be crawled, then for building the twitter followers graph you will need to run the crawler, you can do that by adding your twitter tokens to the database and then running the crawler queue.
+
+```
+docker-compose exec web make add-token
+docker-compose exec web make run-crawler
+```
+
+## Debugging
 
 If you need debugging, you can switch to the web or database containers with:
 
