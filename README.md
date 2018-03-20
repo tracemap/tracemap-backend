@@ -38,10 +38,15 @@ You can find all other API endpoints on the `server.py` file.
 
 ## Crawling
 
-Every time you call the /twitter/get_tweet_data endpoint, it populates the database with information about the tweet, but not the user followers connections. In order to populate this for a user you will need to call this endpoint:
+In order to populate your database for some users, you will need to call this endpoint:
 
 ```
 curl "http://localhost:5000/neo4j/label_unknown_users/870716233393614849" -v
+```
+or with using multiple ids:
+
+```
+curl "http://localhost:5000/neo4j/label_unknown_users/870716233393614849,24618749124147,124217641123" -v
 ```
 
 This will queue the user to be crawled, then for building the twitter followers graph you will need to run the crawler, you can do that by adding your twitter tokens to the database and then running the crawler queue.
