@@ -51,7 +51,6 @@ def get_priority_users(user_list=[], priority=1):
     query += "SET a:QUEUED "
     query += "RETURN a.uid as uid "
     query += "LIMIT %s" % remaining_users
-
     
     with driver.session() as db:
         results = db.run(query)
@@ -79,6 +78,6 @@ while True:
     # so it was more secure to wait until the crawlers are finished
     if q.empty():
         print("Searching priority users...")
-        for user in get_priority_users():
+        for user in get_priority_users([]):
             q.put(user)
     time.sleep(2)
