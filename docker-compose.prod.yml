@@ -1,0 +1,12 @@
+version: '3'
+services:
+  web:
+    container_name: tracemap-api
+    build: .
+    ports:
+     - '5000:5000'
+     - '5100:5100'
+    volumes:
+     - .:/usr/src/app
+    env_file: .env
+    

@@ -17,12 +17,20 @@ class TwitterCrawler:
 
     def __init__(self, q, lock):
         print("crawler is initialized with %s" % q)
-        self.driver = GraphDatabase.driver(
-            os.environ.get('NEO4J_URI'), auth=(
-                os.environ.get('NEO4J_USER'),
-                os.environ.get('NEO4J_PASSWORD')
-            )
-        )
+        while True:
+            try:
+                self.driver = GraphDatabase.driver(
+                    os.environ.get('NEO4J_URI'), auth=(
+                        os.environ.get('NEO4J_USER'),
+                        os.environ.get('NEO4J_PASSWORD')
+                    )
+                )
+                print("crawler connected to the database.")
+                break
+            except:
+                print("crawler couldnt connect to the database. retrying.")
+                time.sleep(5)
+                continue
         self.app_token = os.environ.get('APP_TOKEN')
         self.app_secret = os.environ.get('APP_SECRET')
         self.q = q
@@ -71,7 +79,7 @@ class TwitterCrawler:
             if error_response == 'invalid user':
                 return 0
             elif error_response == 'continue':
-                return __is_user_valid(user_id)
+                return self.__is_user_valid(user_id)
             else:
                 print("%s%s" % (self.color, error_response))
                 return 0
@@ -267,8 +275,8 @@ class TwitterCrawler:
                     user_secret = user["secret"]
             if not user_token:
                 print(user_token)
-                print("%sAll token are busy, waiting..." % self.color)
-                time.sleep(60)
+                print("All token are busy, waiting...")
+                time.sleep(30)
                 continue
             else:
                 break

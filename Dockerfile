@@ -15,5 +15,4 @@ RUN pip install -r requirements.txt
 
 ADD . /usr/src/app
 
-CMD python server.py runserver -h 0.0.0.0
-CMD uwsgi --ini wsgi-conf.ini
+CMD make start-uwsgi & make start-flask
