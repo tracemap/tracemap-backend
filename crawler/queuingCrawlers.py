@@ -47,21 +47,21 @@ def get_unfinished_list():
 def get_priority_users(user_list=[], priority=1):
     remaining_users = batch_size - len(user_list)
     query = "MATCH (a:USER:PRIORITY%s) " % priority
-    query = "LIMIT %s " % remaining_users
-    query = "WITH a "
     query += "REMOVE a:PRIORITY%s " % priority
     query += "SET a:QUEUED "
-    query += "RETURN a.uid as uid"
+    query += "RETURN a.uid as uid "
+    query += "LIMIT %s" % remaining_users
 
+    
     with driver.session() as db:
         results = db.run(query)
-        for user in results:
-            user_list.append(user['uid'])
-        if len(user_list) == batch_size or priority == 3:
-            return user_list
-        else:
-            priority += 1
-            get_priority_users(user_list, priority)
+    for user in results:
+        user_list.append(user['uid'])
+    if len(user_list) == batch_size or priority == 3:
+        return user_list
+    else:
+        priority += 1
+        return get_priority_users(user_list, priority)
 
 
 
@@ -79,6 +79,6 @@ while True:
     # so it was more secure to wait until the crawlers are finished
     if q.empty():
         print("Searching priority users...")
-        for user in get_priority_users(batch_size):
+        for user in get_priority_users():
             q.put(user)
     time.sleep(2)
