@@ -97,7 +97,7 @@ def label_unknown_users(user_ids):
     unknown_users = []
     for user in user_ids:
         query = "MATCH (u:USER{uid:'%s'}) " % user
-        query += "WHERE u:QUEUED OR u.timestamp > %s " % (time_now - one_month)
+        query += "WHERE u:QUEUED OR u:PRIORITY1 OR u.timestamp > %s " % (time_now - one_month)
         query += "RETURN u.uid"
         database_response = __request_database(query)
         if len(database_response) == 0:
@@ -105,6 +105,6 @@ def label_unknown_users(user_ids):
     label_query = "WITH %s as users " % unknown_users
     label_query += "FOREACH (user IN users | "
     label_query += "MERGE (u:USER{uid:user}) "
-    label_query += "SET u:QUEUED)"
+    label_query += "SET u:PRIORITY1)"
     __request_database(label_query)
     return "done"
