@@ -112,7 +112,7 @@ class TwitterCrawler:
 
 
     def __save_user_followers(self, user_id, followers):
-        # Add a batch of follovers to the db
+        # Add a batch of followers to the db
         query = "WITH %s AS followers " % followers
         query += "MERGE (u:USER{uid:'%s'}) " % user_id
         query += "FOREACH (follower IN followers | "

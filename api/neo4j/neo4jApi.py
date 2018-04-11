@@ -64,6 +64,7 @@ def get_followers(user_ids):
             followers_dictionary[user].append(follower)
     return {'response': followers_dictionary}
 
+
 """This function does not create new nodes, users must be in database already"""
 def add_user_info(user_info):
     if 'response' not in user_info.keys():
@@ -81,6 +82,7 @@ def add_user_info(user_info):
             success = False
     return success
 
+
 """This function gets info of ONE user per time from the database"""
 def get_user_info(user_id):
     database_query = 'MATCH (user:USER {uid: "'+user_id+'"}) ' +\
@@ -91,20 +93,18 @@ def get_user_info(user_id):
         return {}
     return {'response':{user_id:database_response[0]['user'].properties}}
 
+
 def label_unknown_users(user_ids):
     time_now = math.floor(time.time())
     one_month = 60 * 60 * 24 * 30
-    unknown_users = []
-    for user in user_ids:
-        query = "MATCH (u:USER{uid:'%s'}) " % user
-        query += "WHERE u:QUEUED OR u.timestamp > %s " % (time_now - one_month)
-        query += "RETURN u.uid"
-        database_response = __request_database(query)
-        if len(database_response) == 0:
-            unknown_users.append(user)
-    label_query = "WITH %s as users " % unknown_users
-    label_query += "FOREACH (user IN users | "
-    label_query += "MERGE (u:USER{uid:user}) "
-    label_query += "SET u:QUEUED)"
-    __request_database(label_query)
+
+    query = "WITH %s AS USERS " % user_ids
+    query += "FOREACH (U IN USERS | MERGE (X:USER{uid:U}) "
+    query += "FOREACH (ignoreMe in CASE WHEN (X:PRIORITY2 OR "
+    query += "(X:PRIORITY3 AND X.timestamp < %s)) " % (time_now - one_month)
+    query += "THEN [1] ELSE [] END | "
+    query += "SET X:PRIORITY1 REMOVE X:PRIORITY2, X:PRIORITY3))"
+
+    __request_database(query)
     return "done"
+
