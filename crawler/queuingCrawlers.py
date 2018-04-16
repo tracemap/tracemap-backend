@@ -3,7 +3,7 @@ from neo4j.v1 import GraphDatabase
 import time
 import os
 
-from .twitter import TwitterCrawler
+from twitter import TwitterCrawler
 
 
 def get_unfinished_list():
