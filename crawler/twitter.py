@@ -24,11 +24,10 @@ class TwitterCrawler:
                         os.environ.get('NEO4J_PASSWORD')
                     )
                 )
-
                 self.__log_to_file(self.name + " connected to the database.")
                 break
             except Exception as exc:
-                self.__log_to_file("0ZZ - Exception: %s -> crawler could not connect to the database. Retrying in 5s..." % exc)
+                self.__log_to_file("0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
                 time.sleep(5)
                 continue
         self.app_token = os.environ.get('APP_TOKEN')
@@ -43,12 +42,15 @@ class TwitterCrawler:
         self.run()
 
     def run(self):
+        empty_state = True if self.q.empty() else False
         while True:
-            # Is this verification necessary?
             if self.q.empty():
-                self.__log_to_file("queue empty... waiting 10s...")
+                if not empty_state:
+                    self.__log_to_file("Queue empty. Waiting...")
+                    empty_state = True
                 time.sleep(10)
                 continue
+            empty_state = False
             user_id = self.q.get()
             self.crawl(user_id)
 
@@ -69,7 +71,7 @@ class TwitterCrawler:
                 response = self.api.request(self.USERS_SHOW, {"user_id": user_id})
                 break
             except Exception as exc:
-                self.__log_to_file("1 - ###ERROR### -> %s: ConnectTimeout retrying in 10s..." % exc)
+                self.__log_to_file("1 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                 time.sleep(10)
                 continue
         parsed_response = json.loads(response.text)
@@ -83,7 +85,7 @@ class TwitterCrawler:
 
                 return self.__is_user_valid(user_id)
             else:
-                self.__log_to_file("2 - Unknown error: %s" % error_response)
+                self.__log_to_file("2 - UNKNOWN ERROR -> %s." % error_response)
                 return 0
         elif not self.__is_language_valid(parsed_response["lang"]):
             self.__log_to_file("Language outside of TraceMap's scope!")
@@ -111,7 +113,7 @@ class TwitterCrawler:
                     })
                     break
                 except Exception as exc:
-                    self.__log_to_file("3 - ###ERROR### -> %s: ConnectTimeout retrying in 10s..." % exc)
+                    self.__log_to_file("3 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                     time.sleep(10)
                     continue
             parsed_response = json.loads(response.text)
@@ -129,7 +131,7 @@ class TwitterCrawler:
                         self.__delete_user(user_id)
                         break
                     else:
-                        self.__log_to_file("6 - Unknown error (%s) while trying to get followers from user %s" %
+                        self.__log_to_file("6 - UNKNOWN ERROR -> %s (while trying to get followers from user %s)." %
                                            (error_response, user_id))
             if 'next_cursor' in parsed_response:
                 cursor = parsed_response["next_cursor"]
@@ -225,12 +227,11 @@ class TwitterCrawler:
                 except Exception as exc:
                     e_name = type(exc).__name__
                     if e_name == "TransientError":
-                        self.__log_to_file("8 - ###### DB DATA IS LOCKED. Retrying...######")
-                        self.__log_to_file("%s" % exc)
+                        self.__log_to_file("8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
                         time.sleep(2)
                         continue
                     else:
-                        self.__log_to_file("9 - ###### WEIRD ERROR!!! %s %s" % (e_name, exc))
+                        self.__log_to_file("9 - UNKNOWN ERROR -> %s." % e_name)
                         time.sleep(2)
                         continue
 
@@ -243,19 +244,17 @@ class TwitterCrawler:
                 except Exception as exc:
                     e_name = type(exc).__name__
                     if e_name == "TransientError":
-                        self.__log_to_file("10 - ###### DB DATA IS LOCKED. Retrying...######")
-                        self.__log_to_file("%s" % exc)
+                        self.__log_to_file("10 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
                         time.sleep(2)
                         continue
                     else:
-                        self.__log_to_file("11 - ###### WEIRD ERROR!!! %s %s" % (type(exc).__name__, exc))
+                        self.__log_to_file("11 - UNKNOWN ERROR -> %s." % e_name)
                         time.sleep(2)
                         continue
             try:
                 return result.single()[0]
             except Exception as exc:
-                print("$$$$$$$result.data: %s" % result.data())
-                self.__log_to_file("11B ##### WEIRD ERROR!!! %s  => result.data(): %s" % (exc, result.data()))
+                self.__log_to_file("11B - UNKNOWN ERROR -> %s. The value of result.data() is %s." % (exc, result.data()))
 
     @staticmethod
     def __check_twitter_error_code(code):
@@ -293,7 +292,7 @@ class TwitterCrawler:
                     user_secret = user["secret"]
                     user_name = user["user"]
             if not user_token:
-                self.__log_to_file("12 - All token are busy, waiting 30s...")
+                self.__log_to_file("All tokens are busy, waiting 30s...")
                 time.sleep(30)
                 continue
             else:
@@ -315,7 +314,7 @@ class TwitterCrawler:
                 })
                 break
             except Exception as exc:
-                self.__log_to_file("13 - ###ERROR### -> %s: ConnectTimeout retrying in 10s..." % exc)
+                self.__log_to_file("13 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                 time.sleep(10)
                 continue
         parsed_response = json.loads(response.text)
@@ -325,19 +324,18 @@ class TwitterCrawler:
             query += "SET h.timestamp=%s" % reset_time
             self.__run_query(query)
         except Exception as exc:
-            self.__log_to_file("14 - ###ERROR### -> %s: Failed to reset the token's timestamp" % exc)
+            self.__log_to_file("14 - ERROR -> %s. Failed to reset the token's timestamp." % exc)
             if 'errors' in parsed_response:
-                self.__log_to_file("15 - parsed_response: %s" % parsed_response)
                 e_code = parsed_response['errors'][0]['code']
                 if e_code == 89:
                     query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
                     query += "REMOVE h:TOKEN, SET h:OLDTOKEN"
                     self.__run_query(query)
-                    self.__log_to_file("16 - Error corrected, token deleted!")
+                    self.__log_to_file("Error corrected, token deleted!")
                 else:
-                    self.__log_to_file("17 - Unknown error in _update_reset_time function")
+                    self.__log_to_file("Unknown error in __update_reset_time() function")
             else:
-                self.__log_to_file("18 - Unknown error in _update_reset_time and parsed_response: %s" % parsed_response)
+                self.__log_to_file("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __log_to_file(self, message):
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
