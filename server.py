@@ -4,6 +4,7 @@ from flask_cors import CORS
 import api.twitter.twitterApi as twitterApi
 import api.twitter.tweet as tweet
 import api.neo4j.neo4jApi as neo4jApi
+import api.newsletter.newsletterApi as newsletterApi
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
@@ -52,6 +53,10 @@ def neo4j_get_user_info(user_id):
 def neo4j_label_unknown_users(user_ids):
     neo4jApi.label_unknown_users(user_ids.split(","))
     return "Done"
+
+@app.route('/newsletter/save_subscriber/<string:email_adress>')
+def newsletter_save_subscriber(email_adress):
+    return newsletterApi.save_subscriber(email_adress)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)

@@ -8,3 +8,4 @@
 packages/*
 .idea/*
 crawler/log/*
+user-data/newsletter_subscribers.txt
