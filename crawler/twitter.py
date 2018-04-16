@@ -24,6 +24,7 @@ class TwitterCrawler:
                         os.environ.get('NEO4J_PASSWORD')
                     )
                 )
+
                 self.__log_to_file(self.name + " connected to the database.")
                 break
             except Exception as exc:
@@ -79,6 +80,7 @@ class TwitterCrawler:
                 return 0
             elif error_response == 'continue':
                 self.__log_to_file("Retry to check user validity")
+
                 return self.__is_user_valid(user_id)
             else:
                 self.__log_to_file("2 - Unknown error: %s" % error_response)

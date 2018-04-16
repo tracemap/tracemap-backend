@@ -5,7 +5,6 @@ import os
 
 from twitter import TwitterCrawler
 
-
 def get_unfinished_list():
     query = "MATCH (a:QUEUED) "
     query += "RETURN a.uid as uid"
@@ -117,6 +116,6 @@ if __name__ == '__main__':
             # if 'QUEUED' not in labels:
             #     __log_to_file("QUEUED label missing in user %s (%s)" % (user, labels))
             #     continue
-            q.put(user)
-            __log_to_file("User added to queue: %s" % user)  # , labels))
 
+            q.put(user)
+            __log_to_file("User added to queue: %s" % user)
