@@ -28,7 +28,7 @@ class TwitterCrawler:
                 self.__log_to_file(self.name + " connected to the database.")
                 break
             except Exception as exc:
-                self.__log_to_file("0 - Exception: %s -> crawler could not connect to the database. Retrying in 5s..." % exc)
+                self.__log_to_file("0ZZ - Exception: %s -> crawler could not connect to the database. Retrying in 5s..." % exc)
                 time.sleep(5)
                 continue
         self.app_token = os.environ.get('APP_TOKEN')
@@ -332,7 +332,7 @@ class TwitterCrawler:
                 e_code = parsed_response['errors'][0]['code']
                 if e_code == 89:
                     query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
-                    query += "DELETE h"
+                    query += "REMOVE h:TOKEN, SET h:OLDTOKEN"
                     self.__run_query(query)
                     self.__log_to_file("16 - Error corrected, token deleted!")
                 else:
