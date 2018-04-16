@@ -1,4 +1,4 @@
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j.v1 import GraphDatabase
 from TwitterAPI import TwitterAPI
 import json
 import os
@@ -256,7 +256,6 @@ class TwitterCrawler:
             except Exception as exc:
                 print("$$$$$$$result.data: %s" % result.data())
                 self.__log_to_file("11B ##### WEIRD ERROR!!! %s  => result.data(): %s" % (exc, result.data()))
-
 
     @staticmethod
     def __check_twitter_error_code(code):
