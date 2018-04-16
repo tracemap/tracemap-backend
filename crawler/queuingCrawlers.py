@@ -3,7 +3,8 @@ from neo4j.v1 import GraphDatabase
 import time
 import os
 
-from twitter import TwitterCrawler
+from .twitter import TwitterCrawler
+
 
 def get_unfinished_list():
     query = "MATCH (a:QUEUED) "
@@ -44,6 +45,7 @@ def get_priority_users(user_list, priority=1):
         __log_to_file("Going to next priority, %s users remaining." % (batch_size - len(user_list)))
         return get_priority_users(user_list, priority)
 
+
 def get_user_labels(user):
     query = "MATCH (u:USER{uid:'%s'}) " % user
     query += "RETURN LABELS(u) AS labels"
@@ -54,6 +56,7 @@ def get_user_labels(user):
     except Exception as exc:
         __log_to_file(str(results.data()))
         return {}
+
 
 def __log_to_file(message):
     now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
