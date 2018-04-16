@@ -4,6 +4,7 @@
 /api/token/__pycache__/
 /api/token/__pycache__/*
 .env
+.env-server
 .cache/*
 packages/*
 .idea/*
