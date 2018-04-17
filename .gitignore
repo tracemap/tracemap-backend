@@ -9,4 +9,5 @@
 packages/*
 .idea/*
 crawler/log/*
+crawler/temp/*
 user-data/newsletter_subscribers.txt

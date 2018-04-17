@@ -3,10 +3,23 @@ from neo4j.v1 import GraphDatabase
 import time
 import os
 
-from twitter import TwitterCrawler
+from twitterCrawlers import Crawler
+from databaseWriter import Writer
 
 
 def get_unfinished_list():
+
+    token_query = "MATCH (h:BUSYTOKEN) "
+    token_query += "SET h:TOKEN REMOVE h:BUSYTOKEN"
+
+    while True:
+        with driver.session() as db:
+            try:
+                db.run(token_query)
+                break
+            except Exception as exc:
+                __log_to_file("ERROR -> %s. Resetting tokens failed." % exc)
+                continue
 
     query = "MATCH (a:QUEUED) "
     query += "RETURN a.uid as uid"
@@ -61,33 +74,13 @@ def get_priority_users(user_list, priority=1):
         return get_priority_users(user_list, priority)
 
 
-def get_user_labels(user):
-
-    query = "MATCH (u:USER{uid:'%s'}) " % user
-    query += "RETURN LABELS(u) AS labels"
-
-    with driver.session() as db:
-        results = db.run(query)
-
-    try:
-        return results.data()[0]['labels']
-    except Exception as exc:
-        return {}
-
-
 def __log_to_file(message):
-    print(message)
     now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
     with open("log/queue_manager.log", 'a') as log_file:
         log_file.write(now + message + '\n')
 
 
-if __name__ == '__main__':
-
-    queue_size = 100
-    batch_size = 500
-    num_crawlers = 20
-
+def __connect_to_db():
     while True:
         try:
             driver = GraphDatabase.driver(
@@ -97,20 +90,41 @@ if __name__ == '__main__':
                 )
             )
             __log_to_file("Connected to the database.")
-            break
+            return driver
         except Exception as exc:
-            __log_to_file("Exception: %s -> Database not up or wrong credentials! retrying in 5s..." % exc)
+            self.__log_to_file("Exception: %s -> Database not up or wrong credentials! retrying in 5s..." % exc)
             time.sleep(5)
             continue
 
+
+if __name__ == '__main__':
+
+    for temp_file in os.listdir("temp"):
+        os.remove("temp/"+temp_file)
+
+    __log_to_file("All temp files removed.")
+
+    queue_size = 100
+    batch_size = 500
+    num_crawlers = 20
+
+    driver = __connect_to_db()
+
     q = multiprocessing.Queue(queue_size)
-    __log_to_file("Queue set!")
+    write_q = multiprocessing.Queue()
+
+    __log_to_file("Queues set!")
 
     for i in range(num_crawlers):
-        crawler = multiprocessing.Process(target=TwitterCrawler, args=(q, "crawler%s" % i))
+        crawler = multiprocessing.Process(target=Crawler, args=(q, write_q, "crawler%s" % i))
         crawler.daemon = True
         crawler.start()
         __log_to_file("crawler%s" % i + " started!")
+
+    writer = multiprocessing.Process(target=Writer, args=(write_q, "writer"))
+    writer.daemon = True
+    writer.start()
+    __log_to_file("Writer started!")
 
     unfinished_list = get_unfinished_list()
     __log_to_file("Unfinished_list contains %s users..." % len(unfinished_list))
