@@ -231,6 +231,7 @@ class TwitterCrawler:
                     e_name = type(exc).__name__
                     if e_name == "TransientError":
                         self.__log_to_file("8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
+                        self.__log_to_file(str(exc))
                         time.sleep(2)
                         continue
                     elif e_name == "AddressError":
@@ -250,6 +251,7 @@ class TwitterCrawler:
                     e_name = type(exc).__name__
                     if e_name == "TransientError":
                         self.__log_to_file("10 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
+                        self.__log_to_file(str(exc))
                         time.sleep(2)
                         continue
                     elif e_name == "AddressError":
@@ -345,7 +347,6 @@ class TwitterCrawler:
                 self.__log_to_file("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __log_to_file(self, message):
-        print(message)
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')

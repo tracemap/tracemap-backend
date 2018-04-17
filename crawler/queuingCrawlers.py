@@ -76,7 +76,6 @@ def get_user_labels(user):
 
 
 def __log_to_file(message):
-    print(message)
     now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
     with open("log/queue_manager.log", 'a') as log_file:
         log_file.write(now + message + '\n')
