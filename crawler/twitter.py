@@ -16,20 +16,9 @@ class TwitterCrawler:
         self.name = name
         self.languages = ["de", "en"]
         self.__log_to_file(self.name + " is initialized.")
-        while True:
-            try:
-                self.driver = GraphDatabase.driver(
-                    os.environ.get('NEO4J_URI'), auth=(
-                        os.environ.get('NEO4J_USER'),
-                        os.environ.get('NEO4J_PASSWORD')
-                    )
-                )
-                self.__log_to_file(self.name + " connected to the database.")
-                break
-            except Exception as exc:
-                self.__log_to_file("0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
-                time.sleep(5)
-                continue
+
+        self.driver = self.__connect_to_db()
+
         self.app_token = os.environ.get('APP_TOKEN')
         self.app_secret = os.environ.get('APP_SECRET')
 
@@ -40,6 +29,22 @@ class TwitterCrawler:
 
         self.__get_user_auth()
         self.run()
+
+    def __connect_to_db(self):
+        while True:
+            try:
+                driver = GraphDatabase.driver(
+                    os.environ.get('NEO4J_URI'), auth=(
+                        os.environ.get('NEO4J_USER'),
+                        os.environ.get('NEO4J_PASSWORD')
+                    )
+                )
+                self.__log_to_file(self.name + " connected to the database.")
+                return driver
+            except Exception as exc:
+                self.__log_to_file("0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
+                time.sleep(5)
+                continue
 
     def run(self):
         empty_state = True if self.q.empty() else False
@@ -124,15 +129,13 @@ class TwitterCrawler:
                 error_response = self.__check_error(parsed_response)
                 if error_response:
                     if error_response == 'continue':
-                        self.__log_to_file("Saving followers failed, new token acquired: parsed_response = %s" %
-                                           parsed_response)
                         continue
                     elif error_response == 'invalid user':
                         self.__delete_user(user_id)
                         break
                     else:
-                        self.__log_to_file("6 - UNKNOWN ERROR -> %s (while trying to get followers from user %s)." %
-                                           (error_response, user_id))
+                        self.__log_to_file("6 - UNKNOWN ERROR -> %s (while trying to get followers from user %s). "
+                                           "parsed_response = %s" % (error_response, user_id, parsed_response))
             if 'next_cursor' in parsed_response:
                 cursor = parsed_response["next_cursor"]
             else:
@@ -230,6 +233,8 @@ class TwitterCrawler:
                         self.__log_to_file("8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
                         time.sleep(2)
                         continue
+                    elif e_name == "AddressError":
+                        self.driver = self.__connect_to_db()
                     else:
                         self.__log_to_file("9 - UNKNOWN ERROR -> %s." % e_name)
                         time.sleep(2)
@@ -247,6 +252,8 @@ class TwitterCrawler:
                         self.__log_to_file("10 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
                         time.sleep(2)
                         continue
+                    elif e_name == "AddressError":
+                        self.driver = self.__connect_to_db()
                     else:
                         self.__log_to_file("11 - UNKNOWN ERROR -> %s." % e_name)
                         time.sleep(2)
@@ -303,7 +310,7 @@ class TwitterCrawler:
             self.app_secret,
             user_token,
             user_secret)
-        self.__log_to_file("Using token from %s" % user_name)
+        self.__log_to_file("Saving followers failed, new token acquired. Using token from %s" % user_name)
 
     def __update_reset_time(self):
         # update token's timestamp to real reset time
@@ -338,6 +345,7 @@ class TwitterCrawler:
                 self.__log_to_file("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __log_to_file(self, message):
+        print(message)
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')

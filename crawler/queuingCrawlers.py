@@ -11,13 +11,19 @@ def get_unfinished_list():
     query = "MATCH (a:QUEUED) "
     query += "RETURN a.uid as uid"
 
-    with driver.session() as db:
-        results = db.run(query)
-        user_list = []
-        for unfinished_user in results:
-            user_list.append(unfinished_user['uid'])
+    while True:
+        with driver.session() as db:
+            try:
+                results = db.run(query)
+                break
+            except Exception as exc:
+                __log_to_file("ERROR -> %s. Getting unfinished users failed." % exc)
+                continue
 
-        return user_list
+    user_list = []
+    for unfinished_user in results:
+        user_list.append(unfinished_user['uid'])
+    return user_list
 
 
 # this function is checking for users from the highest
@@ -32,9 +38,15 @@ def get_priority_users(user_list, priority=1):
     query += "SET a:QUEUED "
     query += "RETURN a.uid as uid "
     query += "LIMIT %s" % remaining_users
-    
-    with driver.session() as db:
-        results = db.run(query).data()
+
+    while True:
+        with driver.session() as db:
+            try:
+                results = db.run(query).data()
+                break
+            except Exception as exc:
+                __log_to_file("ERROR -> %s. Getting priority users failed." % exc)
+                continue
 
     for priority_user in results:
         user_list.append(priority_user['uid'])
@@ -64,6 +76,7 @@ def get_user_labels(user):
 
 
 def __log_to_file(message):
+    print(message)
     now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
     with open("log/queue_manager.log", 'a') as log_file:
         log_file.write(now + message + '\n')
