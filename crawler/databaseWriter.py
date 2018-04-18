@@ -76,20 +76,18 @@ class Writer:
         # Add a batch of followers to the db
         present_time = math.floor(time.time())
         query = "WITH %s AS followers " % followers
-        query += "UNWIND followers AS follower "
-        query += "MATCH (u:QUEUED{uid:'%s'}) " % user_id
-        # query += "FOREACH (follower IN followers | "
+        query += "MATCH (u:USER:QUEUED{uid:'%s'}) " % user_id
+        query += "FOREACH (follower IN followers | "
         query += "MERGE (f:USER{uid: follower}) "
         query += "ON CREATE SET f.timestamp=%s, f:PRIORITY2 " % present_time
-        query += "MERGE (u)<-[:FOLLOWS]-(f) "  #) "
+        query += "MERGE (u)<-[:FOLLOWS]-(f)) "
         self.__run_query(query)
         self.__log_to_file("Followers of user %s saved" % user_id)
 
     def __update_user(self, user_id, num_followers):
         # Some verbosity about the kind of db write
         timestamp = math.floor(time.time())
-        self.__log_to_file("Going to update...")
-        query = "MATCH (a:QUEUED{uid:'%s'}) " % user_id
+        query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
         query += "SET a.timestamp=%s, a:PRIORITY3 " % timestamp
         query += "REMOVE a:QUEUED"
         self.__run_query(query)
@@ -97,14 +95,14 @@ class Writer:
 
     def __delete_user(self, user_id):
         # delete invalid user and connections
-        query = "MATCH (u:QUEUED{uid:'%s'}) " % user_id
+        query = "MATCH (u:USER:QUEUED{uid:'%s'}) " % user_id
         query += "DETACH DELETE u"
         self.__run_query(query)
         self.__log_to_file("Deleted user %s\n\n\n" % user_id)
 
     def __delete_connections(self, user_id):
         while True:
-            query = "MATCH (u:QUEUED{uid: '%s' })<-[r:FOLLOWS]-() " % user_id
+            query = "MATCH (u:USER:QUEUED{uid: '%s' })<-[r:FOLLOWS]-() " % user_id
             query += "WITH r LIMIT 100000 "
             query += "DELETE r "
             query += "RETURN count(*)"
@@ -118,7 +116,7 @@ class Writer:
         # by setting their timestamp to a high number
         present_time = math.floor(time.time())
         future_time = present_time + (60 * 60 * 24 * 60)  # 2 months in the future
-        query = "MATCH (u:QUEUED{uid: '%s'}) " % user_id
+        query = "MATCH (u:USER:QUEUED{uid: '%s'}) " % user_id
         query += "SET u.timestamp=%s, u:PRIORITY3 " % future_time
         query += "REMOVE u:QUEUED"
         self.__run_query(query)
@@ -169,7 +167,7 @@ class Writer:
                 self.__log_to_file("11B - UNKNOWN ERROR -> %s. The value of result.data() is %s." % (exc, result.data()))
 
     def __log_to_file(self, message):
-        # print(message)
+        print(message)
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')

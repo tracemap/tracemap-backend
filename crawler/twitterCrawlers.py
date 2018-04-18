@@ -52,7 +52,7 @@ class Crawler:
         while True:
             if self.q.empty():
                 if not empty_state:
-                    self.__log_to_file("Queue empty. Waiting...")
+                    self.__log_to_file("Queue empty. Waiting...\n\n\n")
                     empty_state = True
                 time.sleep(10)
                 continue
@@ -168,7 +168,7 @@ class Crawler:
         with open("temp/%s_delete.txt" % user_id, "a") as temp_file:
             temp_file.write('')
         self.write_q.put("temp/%s_delete.txt" % user_id)
-        self.__log_to_file("User %s ready to be deleted." % user_id)
+        self.__log_to_file("User %s ready to be deleted.\n\n\n" % user_id)
 
     def __skip_user(self, user_id):
         # skipping users having the wrong language
@@ -176,7 +176,7 @@ class Crawler:
         with open("temp/%s_skip.txt" % user_id, "a") as temp_file:
             temp_file.write('')
         self.write_q.put("temp/%s_skip.txt" % user_id)
-        self.__log_to_file("User %s ready to be skipped" % user_id)
+        self.__log_to_file("User %s ready to be skipped.\n\n\n" % user_id)
 
     def __check_error(self, response):
         error_response = ""
@@ -268,7 +268,7 @@ class Crawler:
             self.app_secret,
             user_token,
             user_secret)
-        self.__log_to_file("Saving followers failed, new token acquired. Using token from %s" % user_name)
+        self.__log_to_file("##### Saving followers failed, new token acquired. Using token from %s" % user_name)
 
     def __update_reset_time(self):
         # update token's timestamp to real reset time
