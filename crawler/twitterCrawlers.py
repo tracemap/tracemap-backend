@@ -86,8 +86,6 @@ class Crawler:
                 self.__log_to_file("User is invalid!")
                 return 0
             elif error_response == 'continue':
-                self.__log_to_file("Retry to check user validity")
-
                 return self.__is_user_valid(user_id)
             else:
                 self.__log_to_file("2 - UNKNOWN ERROR -> %s." % error_response)
@@ -123,7 +121,7 @@ class Crawler:
                     time.sleep(10)
                     continue
             parsed_response = json.loads(response.text)
-            if "ids" in parsed_response and parsed_response["ids"] != []:
+            if "ids" in parsed_response:
                 self.__save_user_followers(user_id, parsed_response["ids"])
                 num_followers += len(parsed_response["ids"])
             else:
@@ -154,13 +152,13 @@ class Crawler:
             line += ','
         if line != '':
             line = line[:-1]
-        with open("temp/tempo_%s.txt" % user_id, "a") as temp_file:
+        with open("temp/temp_%s.txt" % user_id, "a") as temp_file:
             temp_file.write(line+'\n')
         self.__log_to_file("Batch of followers of user %s saved to file." % user_id)
 
     def __finish_update(self, user_id, num_followers):
         # Some verbosity about the kind of db write
-        os.rename("temp/tempo_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
+        os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
         self.write_q.put("temp/%s_save.txt" % user_id)
         self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" %
                            (user_id, num_followers))
@@ -306,6 +304,7 @@ class Crawler:
                 self.__log_to_file("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __log_to_file(self, message):
+        # print(message)
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')

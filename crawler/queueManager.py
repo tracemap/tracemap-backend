@@ -7,7 +7,7 @@ from twitterCrawlers import Crawler
 from databaseWriter import Writer
 
 
-def get_unfinished_list():
+def get_uncrawled_list():
 
     token_query = "MATCH (h:BUSYTOKEN) "
     token_query += "SET h:TOKEN REMOVE h:BUSYTOKEN"
@@ -35,7 +35,12 @@ def get_unfinished_list():
 
     user_list = []
     for unfinished_user in results:
-        user_list.append(unfinished_user['uid'])
+        uid = unfinished_user['uid']
+        pre_saved = '%s_save.txt' % uid in os.listdir("temp")
+        pre_skipped = '%s_skip.txt' % uid in os.listdir("temp")
+        pre_deleted = '%s_delete.txt' % uid in os.listdir("temp")
+        if not (pre_saved or pre_skipped or pre_deleted):
+            user_list.append(uid)
     return user_list
 
 
@@ -99,19 +104,20 @@ def __connect_to_db():
 
 if __name__ == '__main__':
 
-    for temp_file in os.listdir("temp"):
-        os.remove("temp/"+temp_file)
-
-    __log_to_file("All temp files removed.")
+    for log_file in os.listdir("log"):
+        os.remove("log/"+log_file)
+    __log_to_file("All log files removed.")
 
     queue_size = 100
+    write_queue_size = 100
     batch_size = 500
     num_crawlers = 20
+    num_writers = 1
 
     driver = __connect_to_db()
 
     q = multiprocessing.Queue(queue_size)
-    write_q = multiprocessing.Queue()
+    write_q = multiprocessing.Queue(write_queue_size)
 
     __log_to_file("Queues set!")
 
@@ -121,16 +127,26 @@ if __name__ == '__main__':
         crawler.start()
         __log_to_file("crawler%s" % i + " started!")
 
-    writer = multiprocessing.Process(target=Writer, args=(write_q, "writer"))
-    writer.daemon = True
-    writer.start()
-    __log_to_file("Writer started!")
+    for j in range(num_writers):
+        writer = multiprocessing.Process(target=Writer, args=(write_q, "writer%s" % j))
+        writer.daemon = True
+        writer.start()
+        __log_to_file("Writer started!")
 
-    unfinished_list = get_unfinished_list()
-    __log_to_file("Unfinished_list contains %s users..." % len(unfinished_list))
-    for unfinished in unfinished_list:
-        q.put(unfinished)
-    __log_to_file("Finished putting all unfinished users in the queue!")
+    for temp_file in os.listdir("temp"):
+        if temp_file[:5] == "temp_":
+            os.remove("temp/"+temp_file)
+            continue
+        write_q.put("temp/"+temp_file)
+
+    __log_to_file("Finished putting all %s crawled users in the write_queue!" % len(os.listdir("temp")))
+
+    uncrawled_list = get_uncrawled_list()
+
+    for uncrawled in uncrawled_list:
+        q.put(uncrawled)
+
+    __log_to_file("Finished putting all %s uncrawled users in the queue!" % len(uncrawled_list))
 
     empty_state = True if q.empty() else False
 
