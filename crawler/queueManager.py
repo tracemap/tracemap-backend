@@ -3,10 +3,23 @@ from neo4j.v1 import GraphDatabase
 import time
 import os
 
-from twitter import TwitterCrawler
+from twitterCrawlers import Crawler
+from databaseWriter import Writer
 
 
-def get_unfinished_list():
+def get_uncrawled_list():
+
+    token_query = "MATCH (h:BUSYTOKEN) "
+    token_query += "SET h:TOKEN REMOVE h:BUSYTOKEN"
+
+    while True:
+        with driver.session() as db:
+            try:
+                db.run(token_query)
+                break
+            except Exception as exc:
+                __log_to_file("ERROR -> %s. Resetting tokens failed." % exc)
+                continue
 
     query = "MATCH (a:QUEUED) "
     query += "RETURN a.uid as uid"
@@ -22,7 +35,12 @@ def get_unfinished_list():
 
     user_list = []
     for unfinished_user in results:
-        user_list.append(unfinished_user['uid'])
+        uid = unfinished_user['uid']
+        pre_saved = '%s_save.txt' % uid in os.listdir("temp")
+        pre_skipped = '%s_skip.txt' % uid in os.listdir("temp")
+        pre_deleted = '%s_delete.txt' % uid in os.listdir("temp")
+        if not (pre_saved or pre_skipped or pre_deleted):
+            user_list.append(uid)
     return user_list
 
 
@@ -61,33 +79,13 @@ def get_priority_users(user_list, priority=1):
         return get_priority_users(user_list, priority)
 
 
-def get_user_labels(user):
-
-    query = "MATCH (u:USER{uid:'%s'}) " % user
-    query += "RETURN LABELS(u) AS labels"
-
-    with driver.session() as db:
-        results = db.run(query)
-
-    try:
-        return results.data()[0]['labels']
-    except Exception as exc:
-        return {}
-
-
 def __log_to_file(message):
-    print(message)
     now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
     with open("log/queue_manager.log", 'a') as log_file:
         log_file.write(now + message + '\n')
 
 
-if __name__ == '__main__':
-
-    queue_size = 100
-    batch_size = 500
-    num_crawlers = 20
-
+def __connect_to_db():
     while True:
         try:
             driver = GraphDatabase.driver(
@@ -97,26 +95,58 @@ if __name__ == '__main__':
                 )
             )
             __log_to_file("Connected to the database.")
-            break
+            return driver
         except Exception as exc:
-            __log_to_file("Exception: %s -> Database not up or wrong credentials! retrying in 5s..." % exc)
+            self.__log_to_file("Exception: %s -> Database not up or wrong credentials! retrying in 5s..." % exc)
             time.sleep(5)
             continue
 
+
+if __name__ == '__main__':
+
+    for log_file in os.listdir("log"):
+        os.remove("log/"+log_file)
+    __log_to_file("All log files removed.")
+
+    queue_size = 100
+    write_queue_size = 100
+    batch_size = 500
+    num_crawlers = 20
+    num_writers = 1
+
+    driver = __connect_to_db()
+
     q = multiprocessing.Queue(queue_size)
-    __log_to_file("Queue set!")
+    write_q = multiprocessing.Queue(write_queue_size)
+
+    __log_to_file("Queues set!")
 
     for i in range(num_crawlers):
-        crawler = multiprocessing.Process(target=TwitterCrawler, args=(q, "crawler%s" % i))
+        crawler = multiprocessing.Process(target=Crawler, args=(q, write_q, "crawler%s" % i))
         crawler.daemon = True
         crawler.start()
         __log_to_file("crawler%s" % i + " started!")
 
-    unfinished_list = get_unfinished_list()
-    __log_to_file("Unfinished_list contains %s users..." % len(unfinished_list))
-    for unfinished in unfinished_list:
-        q.put(unfinished)
-    __log_to_file("Finished putting all unfinished users in the queue!")
+    for j in range(num_writers):
+        writer = multiprocessing.Process(target=Writer, args=(write_q, "writer%s" % j))
+        writer.daemon = True
+        writer.start()
+        __log_to_file("Writer started!")
+
+    for temp_file in os.listdir("temp"):
+        if temp_file[:5] == "temp_":
+            os.remove("temp/"+temp_file)
+            continue
+        write_q.put("temp/"+temp_file)
+
+    __log_to_file("Finished putting all %s crawled users in the write_queue!" % len(os.listdir("temp")))
+
+    uncrawled_list = get_uncrawled_list()
+
+    for uncrawled in uncrawled_list:
+        q.put(uncrawled)
+
+    __log_to_file("Finished putting all %s uncrawled users in the queue!" % len(uncrawled_list))
 
     empty_state = True if q.empty() else False
 

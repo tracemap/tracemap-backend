@@ -101,7 +101,8 @@ def label_unknown_users(user_ids):
     query = "WITH %s AS USERS " % user_ids
     query += "FOREACH (U IN USERS | MERGE (X:USER{uid:U}) "
     query += "FOREACH (ignoreMe in CASE WHEN (X:PRIORITY2 OR "
-    query += "(X:PRIORITY3 AND X.timestamp < %s)) " % (time_now - one_month)
+    query += "(X:PRIORITY3 AND X.timestamp < %s) OR " % (time_now - one_month)
+    query += "LABELS(X)=['USER']) "
     query += "THEN [1] ELSE [] END | "
     query += "SET X:PRIORITY1 REMOVE X:PRIORITY2, X:PRIORITY3))"
 

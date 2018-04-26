@@ -4,7 +4,10 @@
 /api/token/__pycache__/
 /api/token/__pycache__/*
 .env
+.env-server
 .cache/*
 packages/*
 .idea/*
 crawler/log/*
+crawler/temp/*
+user-data/newsletter_subscribers.txt

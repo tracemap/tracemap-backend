@@ -6,13 +6,13 @@ import time
 import math
 
 
-class TwitterCrawler:
+class Crawler:
     LANGUAGES = ["de", "en"]
     USERS_SHOW = "users/show"
     FOLLOWERS_IDS = "followers/ids"
     RATE_LIMIT = "application/rate_limit_status"
 
-    def __init__(self, q, name):
+    def __init__(self, q, write_q, name):
         self.name = name
         self.languages = ["de", "en"]
         self.__log_to_file(self.name + " is initialized.")
@@ -23,6 +23,7 @@ class TwitterCrawler:
         self.app_secret = os.environ.get('APP_SECRET')
 
         self.q = q
+        self.write_q = write_q
 
         # Eliminating the use of locks for now
         # self.lock = lock;
@@ -51,7 +52,7 @@ class TwitterCrawler:
         while True:
             if self.q.empty():
                 if not empty_state:
-                    self.__log_to_file("Queue empty. Waiting...")
+                    self.__log_to_file("Queue empty. Waiting...\n\n\n")
                     empty_state = True
                 time.sleep(10)
                 continue
@@ -63,7 +64,6 @@ class TwitterCrawler:
         valid_int = self.__is_user_valid(user_id)
         if valid_int == 1:
             self.__log_to_file("CRAWLING: %s" % user_id)
-            self.__delete_connections(user_id)
             self.__get_followers(user_id)
         elif valid_int == 0:
             self.__delete_user(user_id)
@@ -86,8 +86,6 @@ class TwitterCrawler:
                 self.__log_to_file("User is invalid!")
                 return 0
             elif error_response == 'continue':
-                self.__log_to_file("Retry to check user validity")
-
                 return self.__is_user_valid(user_id)
             else:
                 self.__log_to_file("2 - UNKNOWN ERROR -> %s." % error_response)
@@ -105,6 +103,7 @@ class TwitterCrawler:
         return True
 
     def __get_followers(self, user_id):
+        delete = False
         cursor = -1
         num_followers = 0
         while cursor != 0:
@@ -122,7 +121,7 @@ class TwitterCrawler:
                     time.sleep(10)
                     continue
             parsed_response = json.loads(response.text)
-            if "ids" in parsed_response and parsed_response["ids"] != []:
+            if "ids" in parsed_response:
                 self.__save_user_followers(user_id, parsed_response["ids"])
                 num_followers += len(parsed_response["ids"])
             else:
@@ -132,6 +131,7 @@ class TwitterCrawler:
                         continue
                     elif error_response == 'invalid user':
                         self.__delete_user(user_id)
+                        delete = True
                         break
                     else:
                         self.__log_to_file("6 - UNKNOWN ERROR -> %s (while trying to get followers from user %s). "
@@ -141,63 +141,42 @@ class TwitterCrawler:
             else:
                 cursor = 0
 
-        self.__update_followers(user_id, num_followers)
-
-    def __update_followers(self, user_id, num_followers):
-        # Some verbosity about the kind of db write
-        self.__finish_user_update(user_id)
-        self.__log_to_file("FINISHED:%s num_followers: %s\n\n\n" % (user_id, num_followers))
+        if not delete:
+            self.__finish_update(user_id, num_followers)
 
     def __save_user_followers(self, user_id, followers):
         # Add a batch of followers to the db
-        present_time = math.floor(time.time())
-        query = "WITH %s AS followers " % followers
-        query += "MATCH (u:USER:QUEUED{uid:'%s'}) " % user_id
-        query += "FOREACH (follower IN followers | "
-        query += "MERGE (f:USER{uid: follower}) "
-        query += "ON CREATE SET f.timestamp=%s, f:PRIORITY2 " % present_time
-        query += "MERGE (u)<-[:FOLLOWS]-(f)) "
-        self.__run_query(query)
-        self.__log_to_file("Followers of user %s saved" % user_id)
+        line = ''
+        for follower in followers:
+            line += follower
+            line += ','
+        if line != '':
+            line = line[:-1]
+        with open("temp/temp_%s.txt" % user_id, "a") as temp_file:
+            temp_file.write(line+'\n')
+        self.__log_to_file("Batch of followers of user %s saved to file." % user_id)
 
-    def __finish_user_update(self, user_id):
-        timestamp = math.floor(time.time())
-        query = "MATCH (a:USER:QUEUED{uid:'%s'}) " % user_id
-        query += "SET a.timestamp=%s, a:PRIORITY3 " % timestamp
-        query += "REMOVE a:QUEUED"
-        self.__run_query(query)
-        self.__log_to_file("Updated user %s, label QUEUED erased." % user_id)
+    def __finish_update(self, user_id, num_followers):
+        # Some verbosity about the kind of db write
+        os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
+        self.write_q.put("temp/%s_save.txt" % user_id)
+        self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" %
+                           (user_id, num_followers))
 
     def __delete_user(self, user_id):
         # delete invalid user and connections
-        self.__log_to_file("DELETING:%s" % user_id)
-        query = "MATCH (u:USER:QUEUED{uid:'%s'}) " % user_id
-        query += "DETACH DELETE u"
-        self.__run_query(query)
-        self.__log_to_file("Deleted user %s" % user_id)
-
-    def __delete_connections(self, user_id):
-        while True:
-            query = "MATCH (u:USER:QUEUED{uid: '%s' })<-[r:FOLLOWS]-() " % user_id
-            query += "WITH r LIMIT 100000 "
-            query += "DELETE r "
-            query += "RETURN count(*)"
-            result = self.__run_get_query(query)
-            if result == 0:
-                break
-        self.__log_to_file("Connections from user %s deleted" % user_id)
+        with open("temp/%s_delete.txt" % user_id, "a") as temp_file:
+            temp_file.write('')
+        self.write_q.put("temp/%s_delete.txt" % user_id)
+        self.__log_to_file("User %s ready to be deleted.\n\n\n" % user_id)
 
     def __skip_user(self, user_id):
         # skipping users having the wrong language
         # by setting their timestamp to a high number
-        present_time = math.floor(time.time())
-        future_time = present_time + (60 * 60 * 24 * 60)  # 2 months in the future
-        self.__log_to_file("SKIPPING: %s" % user_id)
-        query = "MATCH (u:USER:QUEUED{uid: '%s'}) " % user_id
-        query += "SET u.timestamp=%s, u:PRIORITY3 " % future_time
-        query += "REMOVE u:QUEUED"
-        self.__run_query(query)
-        self.__log_to_file("Skipped user %s" % user_id)
+        with open("temp/%s_skip.txt" % user_id, "a") as temp_file:
+            temp_file.write('')
+        self.write_q.put("temp/%s_skip.txt" % user_id)
+        self.__log_to_file("User %s ready to be skipped.\n\n\n" % user_id)
 
     def __check_error(self, response):
         error_response = ""
@@ -241,30 +220,6 @@ class TwitterCrawler:
                         time.sleep(2)
                         continue
 
-    def __run_get_query(self, query):
-        with self.driver.session() as db:
-            while True:
-                try:
-                    result = db.run(query)
-                    break
-                except Exception as exc:
-                    e_name = type(exc).__name__
-                    if e_name == "TransientError":
-                        self.__log_to_file("10 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
-                        self.__log_to_file(str(exc))
-                        time.sleep(2)
-                        continue
-                    elif e_name == "AddressError":
-                        self.driver = self.__connect_to_db()
-                    else:
-                        self.__log_to_file("11 - UNKNOWN ERROR -> %s." % e_name)
-                        time.sleep(2)
-                        continue
-            try:
-                return result.single()[0]
-            except Exception as exc:
-                self.__log_to_file("11B - UNKNOWN ERROR -> %s. The value of result.data() is %s." % (exc, result.data()))
-
     @staticmethod
     def __check_twitter_error_code(code):
         return {
@@ -288,9 +243,11 @@ class TwitterCrawler:
             actual_time = math.floor(time.time())
             guessed_free_time = actual_time + (60 * 16)
             query = "MATCH (h:TOKEN) "
-            query += "WHERE h.timestamp < %s " % actual_time
+            query += "WHERE NOT h:BUSYTOKEN "
+            query += "AND h.timestamp < %s " % actual_time
             query += "WITH h LIMIT 1 "
             query += "SET h.timestamp=%s " % guessed_free_time
+            query += "SET h:BUSYTOKEN "
             query += "RETURN h.token as token, "
             query += "h.secret as secret, "
             query += "h.user as user"
@@ -312,7 +269,7 @@ class TwitterCrawler:
             self.app_secret,
             user_token,
             user_secret)
-        self.__log_to_file("Saving followers failed, new token acquired. Using token from %s" % user_name)
+        self.__log_to_file("##### Saving followers failed, new token acquired. Using token from %s" % user_name)
 
     def __update_reset_time(self):
         # update token's timestamp to real reset time
@@ -329,7 +286,8 @@ class TwitterCrawler:
         parsed_response = json.loads(response.text)
         try:
             reset_time = parsed_response['resources']['followers']['/followers/ids']['reset']
-            query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
+            query = "MATCH (h:BUSYTOKEN{token:'%s'}) " % self.user_token
+            query += "REMOVE h:BUSYTOKEN "
             query += "SET h.timestamp=%s" % reset_time
             self.__run_query(query)
         except Exception as exc:
@@ -337,8 +295,8 @@ class TwitterCrawler:
             if 'errors' in parsed_response:
                 e_code = parsed_response['errors'][0]['code']
                 if e_code == 89:
-                    query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
-                    query += "REMOVE h:TOKEN, SET h:OLDTOKEN"
+                    query = "MATCH (h:BUSYTOKEN{token:'%s'}) " % self.user_token
+                    query += "REMOVE h:BUSYTOKEN, SET h:OLDTOKEN"
                     self.__run_query(query)
                     self.__log_to_file("Error corrected, token deleted!")
                 else:
@@ -347,7 +305,7 @@ class TwitterCrawler:
                 self.__log_to_file("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __log_to_file(self, message):
-        print(message)
+        # print(message)
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')
