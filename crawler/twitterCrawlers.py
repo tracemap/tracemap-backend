@@ -243,10 +243,11 @@ class Crawler:
             actual_time = math.floor(time.time())
             guessed_free_time = actual_time + (60 * 16)
             query = "MATCH (h:TOKEN) "
-            query += "WHERE h.timestamp < %s " % actual_time
+            query += "WHERE NOT h:BUSYTOKEN "
+            query += "AND h.timestamp < %s " % actual_time
             query += "WITH h LIMIT 1 "
             query += "SET h.timestamp=%s " % guessed_free_time
-            query += "SET h:BUSYTOKEN REMOVE h:TOKEN "
+            query += "SET h:BUSYTOKEN "
             query += "RETURN h.token as token, "
             query += "h.secret as secret, "
             query += "h.user as user"
@@ -286,7 +287,7 @@ class Crawler:
         try:
             reset_time = parsed_response['resources']['followers']['/followers/ids']['reset']
             query = "MATCH (h:BUSYTOKEN{token:'%s'}) " % self.user_token
-            query += "SET h:TOKEN REMOVE h:BUSYTOKEN "
+            query += "REMOVE h:BUSYTOKEN "
             query += "SET h.timestamp=%s" % reset_time
             self.__run_query(query)
         except Exception as exc:
