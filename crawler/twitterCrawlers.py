@@ -296,7 +296,7 @@ class Crawler:
                 e_code = parsed_response['errors'][0]['code']
                 if e_code == 89:
                     query = "MATCH (h:BUSYTOKEN{token:'%s'}) " % self.user_token
-                    query += "REMOVE h:BUSYTOKEN, SET h:OLDTOKEN"
+                    query += "REMOVE h:BUSYTOKEN SET h:OLDTOKEN"
                     self.__run_query(query)
                     self.__log_to_file("Error corrected, token deleted!")
                 else:

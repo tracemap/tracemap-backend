@@ -237,7 +237,7 @@ class TwitterCrawler:
                     elif e_name == "AddressError":
                         self.driver = self.__connect_to_db()
                     else:
-                        self.__log_to_file("9 - UNKNOWN ERROR -> %s." % e_name)
+                        self.__log_to_file("9 - UNKNOWN ERROR -> %s.\n%s" % (e_name, query))
                         time.sleep(2)
                         continue
 
@@ -338,7 +338,7 @@ class TwitterCrawler:
                 e_code = parsed_response['errors'][0]['code']
                 if e_code == 89:
                     query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
-                    query += "REMOVE h:TOKEN, SET h:OLDTOKEN"
+                    query += "REMOVE h:TOKEN SET h:OLDTOKEN"
                     self.__run_query(query)
                     self.__log_to_file("Error corrected, token deleted!")
                 else:
