@@ -14,12 +14,14 @@ api = TwitterAPI( os.environ.get('APP_TOKEN'),
                   os.environ.get('USER_SECRET'))
 
 def __change_credentials():
-    """Switch to the next user credentials if running out of requests"""
-    cred_index = (credIndex + 1) % len(USERS)   
-    api = TwitterAPI(APPLICATION['token'], 
-                     APPLICATION['secret'], 
-                     USERS[cred_index]['token'], 
-                     USERS[cred_index]['secret'])
+    return
+    # TODO: switch to neo4j token
+    # """Switch to the next user credentials if running out of requests"""
+    # cred_index = (cred_index + 1) % len(USERS)   
+    # api = TwitterAPI(APPLICATION['token'], 
+    #                  APPLICATION['secret'], 
+    #                  USERS[cred_index]['token'], 
+    #                  USERS[cred_index]['secret'])
 
 def __parse_properties( data, keys):
     response = {}
@@ -113,7 +115,7 @@ def __request_user_timeline( user_id, include_rts = True):
     }
     if not include_rts:
         params['include_rts'] = False
-    url = "statuses/user_timeline";
+    url = "statuses/user_timeline"
     data = api.request(url, params)
     return data.json()
 
@@ -156,27 +158,6 @@ def get_user_timeline( user_id):
     """Get the latest tweets of a user.
        Returns up to 200 retweets in 4 categories."""
 
-    tweet_object = {}
-    tmp_tweets = __request_user_timeline( user_id)
-    response = {}
-    response['by_time'] = []
-    if 'errors' in tmp_tweets:
-        return tmp_tweets
-    for tweet in tmp_tweets:
-        tmp_response = {}
-        tmp_response['id_str'] = tweet['id_str']
-        tmp_response['retweet_count'] = tweet['retweet_count']
-        tmp_response['created_at'] = tweet['created_at']
-        if 'retweeted_status' in tweet:
-            tmp_response['retweeted'] = tweet['retweeted_status']['id_str'];
-        response['by_time'].append(tmp_response)
-
-    response['by_retweets'] = sorted(response['by_time'], key=lambda tweet: tweet['retweet_count'], reverse=True)
-    response['by_time_no_rts'] = list(filter(
-        lambda x: 'retweeted' not in x, 
-        response['by_time']))
-    response['by_retweets_no_rts'] = list(filter(
-        lambda x: 'retweeted' not in x, 
-        response['by_retweets']))
-    return response
+    tweets = __request_user_timeline( user_id)
+    return tweets
 

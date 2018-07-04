@@ -25,7 +25,7 @@ def twitter_get_tweet_data(tweet_id):
 
 @app.route('/twitter/get_user_timeline/<string:user_id>')
 def twitter_get_user_timeline(user_id):
-    return jsonify(twitterApi.get_user_timeline(user_id));
+    return jsonify(twitterApi.get_user_timeline(user_id))
 
 """Takes a comma seperated list of user_ids
     returns a user_info json object
