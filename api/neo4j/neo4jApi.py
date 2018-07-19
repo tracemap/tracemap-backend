@@ -105,7 +105,12 @@ def label_unknown_users(user_ids):
     query += "LABELS(X)=['USER']) "
     query += "THEN [1] ELSE [] END | "
     query += "SET X:PRIORITY1 REMOVE X:PRIORITY2, X:PRIORITY3))"
-
     __request_database(query)
-    return "done"
+
+    query2 = "WITH %s AS USERS " % user_ids
+    query2 += "MATCH (u:PRIORITY1) "
+    query2 += "WHERE u.uid IN USERS "
+    query2 += "RETURN u.uid as uid"
+    database_response = __request_database(query2)
+    return list(database_response)
 

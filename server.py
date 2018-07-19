@@ -25,7 +25,7 @@ def twitter_get_tweet_data(tweet_id):
 
 @app.route('/twitter/get_user_timeline/<string:user_id>')
 def twitter_get_user_timeline(user_id):
-    return jsonify(twitterApi.get_user_timeline(user_id));
+    return jsonify(twitterApi.get_user_timeline(user_id))
 
 """Takes a comma seperated list of user_ids
     returns a user_info json object
@@ -51,8 +51,7 @@ def neo4j_get_user_info(user_id):
 
 @app.route('/neo4j/label_unknown_users/<string:user_ids>')
 def neo4j_label_unknown_users(user_ids):
-    neo4jApi.label_unknown_users(user_ids.split(","))
-    return "Done"
+    return jsonify(neo4jApi.label_unknown_users(user_ids.split(",")))
 
 @app.route('/newsletter/save_subscriber/<string:email_adress>')
 def newsletter_save_subscriber(email_adress):
