@@ -150,8 +150,14 @@ def get_tweet_data( tweet_id):
     """Request full tweet information, including retweet and user information"""
     url = "statuses/retweets/:%s" % tweet_id
     data = api.request(url, {'count': 100}).json()
+    print( tweet_id)
+    print( url)
+    print("%s" % len(data))
     results = {}
-    results['response'] = __format_tweet_data(data)
+    if len(data) == 0:
+        results['response'] = [];
+    else:
+        results['response'] = __format_tweet_data(data)
     return results
 
 def get_user_timeline( user_id):
