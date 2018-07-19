@@ -51,8 +51,7 @@ def neo4j_get_user_info(user_id):
 
 @app.route('/neo4j/label_unknown_users/<string:user_ids>')
 def neo4j_label_unknown_users(user_ids):
-    neo4jApi.label_unknown_users(user_ids.split(","))
-    return "Done"
+    return jsonify(neo4jApi.label_unknown_users(user_ids.split(",")))
 
 @app.route('/newsletter/save_subscriber/<string:email_adress>')
 def newsletter_save_subscriber(email_adress):
