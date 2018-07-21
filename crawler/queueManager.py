@@ -97,7 +97,7 @@ def __connect_to_db():
             __log_to_file("Connected to the database.")
             return driver
         except Exception as exc:
-            self.__log_to_file("Exception: %s -> Database not up or wrong credentials! retrying in 5s..." % exc)
+            __log_to_file("Exception: %s -> Database not up or wrong credentials! retrying in 5s..." % exc)
             time.sleep(5)
             continue
 
