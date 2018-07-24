@@ -3,13 +3,13 @@ import psutil
 
 process = psutil.Process(os.getpid())
 print_index = 0
-print_every= 1000000
+print_every = 1000000
+
 
 def __scale_bytes(number):
     kilo = 1024
     mega = kilo * 1024
     giga = mega * 1024
-    value = 0
     factor = "byte"
     value = number
     if number > giga:
@@ -22,6 +22,7 @@ def __scale_bytes(number):
         value = number / kilo
         factor = "kb"
     return "%s %s" % (round(value,2), factor)    
+
 
 def __scale_number(number):
     k = 1000
@@ -40,6 +41,7 @@ def __scale_number(number):
 
 def print_memory_usage():
     print("Memory Usage: %s" % __scale_bytes(process.memory_info().rss))
+
 
 for temp_file in os.listdir("temp"):
     print("Creating Set for: %s" % temp_file)
