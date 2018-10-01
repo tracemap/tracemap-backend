@@ -151,3 +151,10 @@ def change_password(email:string, password: string, new_password: string):
             }
     else:
         return result
+
+def get_user_data(email:string, password: string):
+    result = check_password(email, password)
+    if result['password_check']:
+        return neo4jApi.get_beta_user_data(email)
+    else:
+        return result

@@ -71,8 +71,12 @@ def auth_delete_user(email, password):
     return jsonify(betaAuth.delete_user(email, password))
 
 @app.route('/auth/change_password/<string:email>/<string:password>/<string:new_password>')
-def change_password(email, password, new_password):
+def auth_change_password(email, password, new_password):
     return jsonify(betaAuth.change_password(email, password, new_password))
+
+@app.route('/auth/get_user_data/<string:email>/<string:password>')
+def auth_get_user_data(email, password):
+    return jsonify(betaAuth.get_user_data(email, password))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
