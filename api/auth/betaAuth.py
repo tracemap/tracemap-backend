@@ -112,7 +112,8 @@ def check_password(email: string, password:string):
     if 'error' in db_response:
         return {
             'email': email,
-            'error': 'user does not exist'
+            'error': 'user does not exist',
+            'password_check': False
         }
     else:
         hash = db_response
@@ -125,3 +126,28 @@ def check_password(email: string, password:string):
 
 def add_user(username: string, email: string):
     return __add_new_user(username, email)
+
+def delete_user(email: string, password: string):
+    result = check_password(email, password)
+    if result['password_check']:
+        db_result = neo4jApi.delete_beta_user(email)
+        if db_result:
+            return {
+                'email': email,
+                'deleted': True
+            }
+    else:
+        return result
+
+def change_password(email:string, password: string, new_password: string):
+    result = check_password(email, password)
+    if result['password_check']:
+        hash = generate_password_hash(new_password)
+        db_result = neo4jApi.change_password(email, hash)
+        if db_result:
+            return {
+                'email': email,
+                'passwort_changed': True
+            }
+    else:
+        return result

@@ -129,7 +129,7 @@ def get_beta_user_data(email):
         return database_response[0]
     else:
         return {
-            'error': 'user already exists'
+            'error': database_response
         }
 
 def get_beta_user_hash(email):
@@ -141,3 +141,14 @@ def get_beta_user_hash(email):
         return {
             'error': 'user does not exist'
         }
+
+def delete_beta_user(email):
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' DETACH DELETE u" % email
+    __request_database(query)
+    return True
+
+def change_password(email, hash):
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
+    query += "SET u.hash = '%s'" % hash
+    __request_database(query)
+    return True

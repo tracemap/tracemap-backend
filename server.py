@@ -59,12 +59,20 @@ def newsletter_save_subscriber(email_adress):
     return newsletterApi.save_subscriber(email_adress)
 
 @app.route('/auth/check_password/<string:email>/<string:password>')
-def check_password(email, password):
+def auth_check_password(email, password):
     return jsonify(betaAuth.check_password(email, password))
 
 @app.route('/auth/add_user/<string:username>/<string:email>')
 def auth_add_user(username, email):
     return jsonify(betaAuth.add_user(username, email))
+
+@app.route('/auth/delete_user/<string:email>/<string:password>')
+def auth_delete_user(email, password):
+    return jsonify(betaAuth.delete_user(email, password))
+
+@app.route('/auth/change_password/<string:email>/<string:password>/<string:new_password>')
+def change_password(email, password, new_password):
+    return jsonify(betaAuth.change_password(email, password, new_password))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
