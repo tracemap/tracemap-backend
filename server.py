@@ -5,6 +5,7 @@ import api.twitter.twitterApi as twitterApi
 import api.twitter.tweet as tweet
 import api.neo4j.neo4jApi as neo4jApi
 import api.newsletter.newsletterApi as newsletterApi
+import api.auth.betaAuth as betaAuth
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
@@ -56,6 +57,14 @@ def neo4j_label_unknown_users(user_ids):
 @app.route('/newsletter/save_subscriber/<string:email_adress>')
 def newsletter_save_subscriber(email_adress):
     return newsletterApi.save_subscriber(email_adress)
+
+@app.route('/auth/check_password/<string:email>/<string:password>')
+def check_password(email, password):
+    return jsonify(betaAuth.check_password(email, password))
+
+@app.route('/auth/add_user/<string:username>/<string:email>')
+def auth_add_user(username, email):
+    return jsonify(betaAuth.add_user(username, email))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
