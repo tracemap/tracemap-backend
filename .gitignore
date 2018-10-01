@@ -11,3 +11,5 @@ packages/*
 crawler/log/*
 crawler/temp/*
 user-data/newsletter_subscribers.txt
+user-data/beta_users.txt
+.vscode

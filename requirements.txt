@@ -5,3 +5,6 @@ pytest
 TwitterAPI
 uwsgi
 sty
+werkzeug
+smtplib
+email

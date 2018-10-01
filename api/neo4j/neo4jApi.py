@@ -105,7 +105,50 @@ def label_unknown_users(user_ids):
     query += "LABELS(X)=['USER']) "
     query += "THEN [1] ELSE [] END | "
     query += "SET X:PRIORITY1 REMOVE X:PRIORITY2, X:PRIORITY3))"
-
     __request_database(query)
-    return "done"
 
+    query2 = "WITH %s AS USERS " % user_ids
+    query2 += "MATCH (u:PRIORITY1) "
+    query2 += "WHERE u.uid IN USERS "
+    query2 += "RETURN u.uid as uid"
+    database_response = __request_database(query2)
+    return list(database_response)
+
+def add_beta_user(user_obj: dict):
+    if 'username' in user_obj and \
+    'email' in user_obj and \
+    'hash' in user_obj:
+        query = "CREATE (u:BETAUSER {username: '%s', email: '%s', hash: '%s'})" % (user_obj['username'], user_obj['email'], user_obj['hash'])
+        __request_database(query)
+        return True
+
+def get_beta_user_data(email):
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' RETURN u.email, u.username" % email
+    database_response = __request_database(query)
+    if database_response:
+        return database_response[0]
+    else:
+        return {
+            'error': database_response
+        }
+
+def get_beta_user_hash(email):
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' RETURN u.hash" % email
+    database_response = __request_database(query)
+    if database_response:
+        return database_response[0]['u.hash']
+    else:
+        return {
+            'error': 'user does not exist'
+        }
+
+def delete_beta_user(email):
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' DETACH DELETE u" % email
+    __request_database(query)
+    return True
+
+def change_password(email, hash):
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
+    query += "SET u.hash = '%s'" % hash
+    __request_database(query)
+    return True
