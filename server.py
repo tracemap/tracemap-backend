@@ -74,9 +74,9 @@ def auth_delete_user(email, password):
 def auth_change_password(email, password, new_password):
     return jsonify(betaAuth.change_password(email, password, new_password))
 
-@app.route('/auth/get_user_data/<string:email>/<string:password>')
-def auth_get_user_data(email, password):
-    return jsonify(betaAuth.get_user_data(email, password))
+@app.route('/auth/get_user_data/<string:email>/<string:session_token>')
+def auth_get_user_data(email, session_token):
+    return jsonify(betaAuth.get_user_data(email, session_token))
 
 @app.route('/auth/check_session/<string:email>/<string:session_token>')
 def auth_check_session(email, session_token):

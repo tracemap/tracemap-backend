@@ -111,6 +111,16 @@ def __send_verification_mail(username, email, password):
             'error': str(error)
         }
 
+def __simple_check_session(email: string, session_token: string):
+    db_session = neo4jApi.get_user_session_token(email)
+    if 'error' in db_session:
+        return False
+    elif db_session['token'] == session_token:
+        return True
+    else:
+        return False
+
+
 def check_password(email: string, password:string):
     db_response = neo4jApi.get_beta_user_hash(email)
     if 'error' in db_response:
@@ -178,9 +188,6 @@ def change_password(email:string, password: string, new_password: string):
     else:
         return result
 
-def get_user_data(email:string, password: string):
-    result = check_password(email, password)
-    if result['password_check']:
+def get_user_data(email:string, session_token: string):
+    if __simple_check_session(email, session_token):
         return neo4jApi.get_beta_user_data(email)
-    else:
-        return result
