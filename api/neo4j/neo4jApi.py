@@ -142,6 +142,48 @@ def get_beta_user_hash(email):
             'error': 'user does not exist'
         }
 
+def set_user_session_token(email, token):
+    timestamp = time.time()
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
+    query += "SET u.session_token = '%s' " % token
+    query += "SET u.session_timestamp = %s " % timestamp
+    __request_database(query)
+    return True
+
+def get_user_session_token(email):
+    ten_minutes = 60 * 10
+    timestamp = time.time()
+    query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
+    query += "RETURN u.session_timestamp, u.session_token"
+    database_response = __request_database(query)
+    if database_response:
+        old_timestamp = database_response[0]['u.session_timestamp']
+        if not old_timestamp:
+            return {
+                'error': 'no session token'
+            }
+        if old_timestamp < timestamp - ten_minutes:
+            # delete token and return error: expired
+            query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
+            query += "REMOVE u.session_token, u.session_timestamp"
+            __request_database(query)
+            return {
+                'error': 'session expired'
+            }
+        else:
+            # renew timestamp and return session_token
+            query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
+            query += "SET u.session_timestamp = %s " % timestamp
+            __request_database(query)
+            return {
+                'token': database_response[0]['u.session_token']
+            }
+    else:
+        # return error: no token
+        return {
+            'error': database_response
+        }
+
 def delete_beta_user(email):
     query = "MATCH (u:BETAUSER) WHERE u.email = '%s' DETACH DELETE u" % email
     __request_database(query)

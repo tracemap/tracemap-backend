@@ -18,6 +18,11 @@ def __generate_random_pass():
     size = 8
     return ''.join(random.choice(chars) for x in range(size))
 
+def __generate_session_token():
+    chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    size = 30
+    return ''.join(random.choice(chars) for x in range(size))
+
 def __add_new_user(username: string, email: string):
     if email in beta_users:
         password = __generate_random_pass()
@@ -106,7 +111,6 @@ def __send_verification_mail(username, email, password):
             'error': str(error)
         }
 
-
 def check_password(email: string, password:string):
     db_response = neo4jApi.get_beta_user_hash(email)
     if 'error' in db_response:
@@ -118,9 +122,26 @@ def check_password(email: string, password:string):
     else:
         hash = db_response
         result = check_password_hash(hash, password)
+        if result:
+            session_token = __generate_session_token()
+            neo4jApi.set_user_session_token(email, session_token)
         return {
             'email': email,
-            'password_check': result
+            'password_check': result,
+            'session_token': session_token
+        }
+
+def check_session(email: string, session_token: string):
+    db_session = neo4jApi.get_user_session_token(email)
+    if 'error' in db_session:
+        return db_session
+    elif db_session['token'] == session_token:
+        return {
+            'session': True
+        }
+    else:
+        return {
+            'error': 'tokens do not match'
         }
 
 

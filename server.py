@@ -78,5 +78,9 @@ def auth_change_password(email, password, new_password):
 def auth_get_user_data(email, password):
     return jsonify(betaAuth.get_user_data(email, password))
 
+@app.route('/auth/check_session/<string:email>/<string:session_token>')
+def auth_check_session(email, session_token):
+    return jsonify(betaAuth.check_session(email, session_token))
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
