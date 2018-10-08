@@ -151,7 +151,7 @@ def set_user_session_token(email, token):
     return True
 
 def get_user_session_token(email):
-    ten_minutes = 60 * 10
+    two_hours = 60 * 120
     timestamp = time.time()
     query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
     query += "RETURN u.session_timestamp, u.session_token"
@@ -162,7 +162,7 @@ def get_user_session_token(email):
             return {
                 'error': 'no session token'
             }
-        if old_timestamp < timestamp - ten_minutes:
+        if old_timestamp < timestamp - two_hours:
             # delete token and return error: expired
             query = "MATCH (u:BETAUSER) WHERE u.email = '%s' " % email
             query += "REMOVE u.session_token, u.session_timestamp"
