@@ -111,6 +111,53 @@ def __send_verification_mail(username, email, password):
             'error': str(error)
         }
 
+def sendResetMail(email: string, link: string):
+    userdata = neo4jApi.get_beta_user_data(email)
+    if 'error' in userdata:
+        return {
+            'error': 'email does not exist'
+        }
+    else:
+        username = userdata['u.username']
+        msg_string = """
+        Hey {username},
+        a reset of your password has been requested.
+
+        Click the following link to receive an email with your new password:
+        {link}
+
+        If you didn't request a new password for your account, you can ignore this mail.
+
+        Best,
+        Allegra, Bruno, Jonathan & Eike from TraceMap.
+        """.format(
+            username=username,
+            link=link
+        )
+        msg = MIMEText(msg_string)
+        msg['Subject'] = 'How to reset your password.'
+        msg['From'] = 'beta@tracemap.info'
+        msg['To'] = email
+        try: 
+            email_user = os.environ.get('BETA_MAIL_ADDRESS')
+            email_password = os.environ.get('BETA_MAIL_PASSWORD')
+            print( email_user + email_password)
+            smtpObj = smtplib.SMTP( 'smtp.strato.de', 587)
+            smtpObj.ehlo()
+            smtpObj.starttls()
+            smtpObj.ehlo()
+            smtpObj.login(email_user, email_password)
+            smtpObj.sendmail('beta@tracemap.info', email, msg.as_string())
+            smtpObj.quit()
+            return {
+                "reset_mail_sent": True
+            }
+        except Exception as error:
+            return {
+                'error': str(error)
+            }
+    
+
 def __simple_check_session(email: string, session_token: string):
     db_session = neo4jApi.get_user_session_token(email)
     if 'error' in db_session:
@@ -191,6 +238,34 @@ def change_password(email:string, password: string, new_password: string):
             }
     else:
         return result
+
+def request_reset_user(email: string):
+    reset_token = __generate_session_token()
+    neo4jApi.set_user_reset_token(email, reset_token)
+    link = 'https://api.tracemap.info/auth/reset_password/%s/%s' % (email, reset_token)
+    return(sendResetMail(email, link))
+
+
+def reset_password(email: string, reset_token: string):
+    db_response = neo4jApi.get_user_reset_token(email)
+    if 'token' in db_response:
+        if reset_token == db_response['token']:
+            password = __generate_random_pass()
+            hash = generate_password_hash(password)
+            neo4jApi.change_password(email, hash)
+            user_data = neo4jApi.get_beta_user_data(email)
+            username = user_data['u.username']
+            return(__send_verification_mail(username, email, password))
+        else:
+            return {
+                'error': 'wrong reset token'
+            }
+    else:
+        return {
+            'error': 'reset token does not exist'
+        }
+
+
 
 def get_user_data(email:string, session_token: string):
     if __simple_check_session(email, session_token):

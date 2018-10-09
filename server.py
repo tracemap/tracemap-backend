@@ -82,5 +82,13 @@ def auth_get_user_data(email, session_token):
 def auth_check_session(email, session_token):
     return jsonify(betaAuth.check_session(email, session_token))
 
+@app.route('/auth/reset_password/<string:email>/<string:reset_token>')
+def auth_reset_password(email, reset_token):
+    return jsonify(betaAuth.reset_password(email, reset_token))
+
+@app.route('/auth/request_reset_user/<string:email>')
+def auth_request_reset_password(email):
+    return jsonify(betaAuth.request_reset_user(email))
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
