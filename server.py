@@ -86,7 +86,7 @@ def auth_check_session(email, session_token):
 def auth_reset_password(email, reset_token):
     return jsonify(betaAuth.reset_password(email, reset_token))
 
-@app.route('/auth/request_reset_user/<string:email>')
+@app.route('/auth/request_reset_password/<string:email>')
 def auth_request_reset_password(email):
     return jsonify(betaAuth.request_reset_user(email))
 
