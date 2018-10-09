@@ -177,7 +177,7 @@ def delete_user(email: string, password: string):
 
 def change_password(email:string, password: string, new_password: string):
     result = check_password(email, password)
-    if result['password_check']:
+    if 'password_check' in result:
         hash = generate_password_hash(new_password)
         db_result = neo4jApi.change_password(email, hash)
         if db_result:
