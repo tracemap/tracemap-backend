@@ -123,7 +123,7 @@ def sendResetMail(email: string, link: string):
         Hey {username},
         a reset of your password has been requested.
 
-        Click the following link to receive an email with your new password:
+        Click the following link to receive an e-mail with your new password:
         {link}
 
         If you didn't request a new password for your account, you can ignore this mail.
@@ -256,7 +256,7 @@ def reset_password(email: string, reset_token: string):
             user_data = neo4jApi.get_beta_user_data(email)
             username = user_data['u.username']
             __send_verification_mail(username, email, password)
-            return 'You received an e-mail with a new password'
+            return 'You received an e-mail with a new password.'
         else:
             return 'The request token did not match. Please request a new passwort reset at https://tracemap.info'
     elif 'error' in db_response:
