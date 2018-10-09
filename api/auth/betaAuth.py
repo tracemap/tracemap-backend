@@ -255,15 +255,12 @@ def reset_password(email: string, reset_token: string):
             neo4jApi.change_password(email, hash)
             user_data = neo4jApi.get_beta_user_data(email)
             username = user_data['u.username']
-            return(__send_verification_mail(username, email, password))
+            __send_verification_mail(username, email, password)
+            return 'You received an e-mail with a new password'
         else:
-            return {
-                'error': 'wrong reset token'
-            }
-    else:
-        return {
-            'error': 'reset token does not exist'
-        }
+            return 'The request token did not match. Please request a new passwort reset at https://tracemap.info'
+    elif 'error' in db_response:
+        return db_response['error']
 
 
 

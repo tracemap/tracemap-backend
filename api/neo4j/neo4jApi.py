@@ -202,13 +202,13 @@ def get_user_reset_token(email):
         old_timestamp = database_response[0]['u.reset_timestamp']
         if not old_timestamp:
             return {
-                'error': 'no reset token'
+                'error': 'The reset token does not exist. Please request a new password reset at https://tracemap.info.'
             }
         else:
             if old_timestamp < timestamp - one_day:
                 # delete token and return error: expired
                 return {
-                    'error': 'reset expired'
+                    'error': 'The link is expired. Please request a new password reset at https://tracemap.info.'
                 }
             else:
                 return {
