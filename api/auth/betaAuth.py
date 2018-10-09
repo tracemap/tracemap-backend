@@ -134,7 +134,11 @@ def check_password(email: string, password:string):
         result = check_password_hash(hash, password)
         if result:
             session_token = __generate_session_token()
-            neo4jApi.set_user_session_token(email, session_token)
+            db_session = neo4jApi.get_user_session_token(email)
+            if 'token' in db_session:
+                session_token = db_session['token']
+            else:
+                neo4jApi.set_user_session_token(email, session_token)
             return {
                 'email': email,
                 'password_check': result,
