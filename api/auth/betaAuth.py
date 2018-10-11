@@ -49,12 +49,12 @@ def __add_new_user(username: string, email: string):
         else:
             return {
                 'email': email,
-                'error': 'user already exists'
+                'error': 'This email is already taken.'
             }
     else:
         return {
             'email': email,
-            'error': 'email is not a beta tester'
+            'error': 'This email adress is not valid for the closed beta.'
         }
     
 def __send_verification_mail(username, email, password):
@@ -173,7 +173,7 @@ def check_password(email: string, password:string):
     if 'error' in db_response:
         return {
             'email': email,
-            'error': 'user does not exist',
+            'error': 'This email is not registered as a user.',
             'password_check': False
         }
     else:
@@ -194,7 +194,7 @@ def check_password(email: string, password:string):
         else:
             return {
                 'email': email,
-                'error': 'wrong password'
+                'error': 'Wrong password.'
             }
 
 def check_session(email: string, session_token: string):

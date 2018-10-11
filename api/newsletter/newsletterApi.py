@@ -6,10 +6,14 @@ def save_subscriber( email_adress):
         with open(file_path, "r") as file:
             for line in file:
                 if line == ("%s\n" % email_adress):
-                    return "exists"
+                    return {
+                        'error': 'email already exists'
+                    }
     else:
         open(file_path,"a").close()
 
     with open(file_path, "a") as file:
         file.write("%s\n" % email_adress)
-        return "success"
+        return {
+            'email_subscription': 'success'
+        }
