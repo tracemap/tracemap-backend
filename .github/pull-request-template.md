@@ -1,8 +1,3 @@
----
-name: Pull request
-about: Template for a standard pull request
----
-
 Resolves #ISSUE_NUMBER
 
 # Important changes
