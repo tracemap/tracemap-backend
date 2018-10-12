@@ -103,11 +103,8 @@ def auth_check_session():
     session_token = body['session_token']
     return jsonify(betaAuth.check_session(email, session_token))
 
-@app.route('/auth/reset_password', methods = ['POST'])
-def auth_reset_password():
-    body = request.get_json()
-    email = body['email']
-    reset_token = body['reset_token']
+@app.route('/auth/reset_password/<string:email>/<string:reset_token>')
+def auth_reset_password(email, reset_token):
     return betaAuth.reset_password(email, reset_token)
 
 @app.route('/auth/request_reset_password', methods = ['POST'])
