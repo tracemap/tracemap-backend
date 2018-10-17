@@ -5,7 +5,7 @@ about: Template for standart Features
 
 ## Description
 
-**Epic: #(add epic number here)**
+__Epic: #(add epic number here)__
 
 ## Progress checklist
 
