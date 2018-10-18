@@ -89,7 +89,8 @@ class Writer:
                 set_len = len(followers_in_db)
                 self.__log_to_file("List converted successfully into set! Set has %s followers." % set_len)
                 if list_len != set_len:
-                    self.__log_to_file("WARNING!!!WARNING!!!WARNING!!!WARNING!!!WARNING!!!WARNING!!!" +
+                    self.__log_to_file("WARNING!!!WARNING!!!WARNING!!!WARNING!!!WARNING!!!WARNING!!!\n" +
+                                       "      OLD FOLLOWERS LIST AND SET GOT DIFFERENT LENGTHS\n" +
                                        "WARNING!!!WARNING!!!WARNING!!!WARNING!!!WARNING!!!WARNING!!!")
                 for line in followers_file.readlines():
                     new_followers = [f for f in line.replace('\n', '').split(',') if f not in followers_in_db]
@@ -102,7 +103,7 @@ class Writer:
                     if batch_num_followers > 0:
                         self.__save_user_followers(user_id, new_followers)
                     num_followers += batch_num_followers
-                self.__delete_specific_connections(user_id, list(followers_in_db))
+                self.__delete_relations(user_id, list(followers_in_db))
                 self.__log_to_file("Old relations deleted: %s" % len(followers_in_db))
         else:
             self.__log_to_file("No user was in the database yet...")
@@ -143,14 +144,17 @@ class Writer:
         self.__run_query(query)
         self.__log_to_file("Deleted user %s\n\n\n" % user_id)
 
-    def __delete_specific_connections(self, user_id, old_followers):
-        query = "WITH %s AS oldfollowers " % old_followers
-        query += "UNWIND oldfollowers AS oid "
-        query += "MATCH (u:USER:QUEUED{uid: '%s' }) " % user_id
-        query += "MATCH (u)<-[r:FOLLOWS]-(f:USER{uid: oid}) "
-        query += "DELETE r"
-        self.__run_query(query)
-        self.__log_to_file("Old connections from user %s deleted" % user_id)
+    def __delete_relations(self, user_id, old_followers):
+        self.__log_to_file("Deleting %s invalid relations from user %s." % (len(old_followers), user_id))
+        rest = batch = old_followers
+        batch_size = 50000
+        while len(batch) > 0:
+            batch, rest = rest[:batch_size], rest[batch_size:]
+            query = "WITH %s AS oldfollowers " % batch
+            query += "MATCH (u:QUEUED:USER{uid:'%s'})<-[r:FOLLOWS]-(f:USER) WHERE f.uid IN oldfollowers " % user_id
+            query += "DELETE r"
+            self.__run_query(query)
+            self.__log_to_file("Batch of %s old followers deleted." % len(batch))
 
     def __skip_user(self, user_id):
         # skipping users having the wrong language
