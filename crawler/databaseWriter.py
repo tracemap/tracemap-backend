@@ -212,7 +212,7 @@ class Writer:
                 self.__log_to_file(str(exc))
 
     def __log_to_file(self, message):
-        print(message)
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
+        print(now + message)
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')
