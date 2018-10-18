@@ -119,12 +119,12 @@ class Writer:
     def __save_user_followers(self, user_id, followers):
         # Add a batch of followers to the db
         present_time = math.floor(time.time())
-        query = "WITH %s AS followers " % followers
+        query = "MATCH (u:QUEUED:USER{uid:'%s'}) " % user_id
+        query += "WITH %s AS followers, u " % followers
         query += "UNWIND followers AS fid "
-        query += "MATCH (u:USER:QUEUED{uid:'%s'}) " % user_id
         query += "MERGE (f:USER{uid: fid}) "
         query += "ON CREATE SET f.timestamp=%s, f:PRIORITY2 " % present_time
-        query += "MERGE (u)<-[:FOLLOWS]-(f) "
+        query += "CREATE (u)<-[:FOLLOWS]-(f)"
         self.__run_query(query)
         self.__log_to_file("Followers of user %s saved: %s" % (user_id, len(followers)))
 
