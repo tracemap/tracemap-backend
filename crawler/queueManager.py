@@ -4,7 +4,7 @@ import time
 import os
 
 from twitterCrawlers import Crawler
-from databaseWriter import Writer
+from newDatabaseWriter import Writer
 
 
 def get_uncrawled_list():
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     __log_to_file("All log files removed.")
 
     queue_size = 100
-    write_queue_size = 100
+    write_queue_size = 3000
     batch_size = 500
     num_crawlers = 20
     num_writers = 1

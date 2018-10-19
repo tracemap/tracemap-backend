@@ -90,9 +90,9 @@ class Crawler:
             else:
                 self.__log_to_file("2 - UNKNOWN ERROR -> %s." % error_response)
                 return 0
-        elif not self.__is_language_valid(parsed_response["lang"]):
-            self.__log_to_file("Language outside of TraceMap's scope!")
-            return -1
+        # elif not self.__is_language_valid(parsed_response["lang"]):
+        #     self.__log_to_file("Language outside of TraceMap's scope!")
+        #     return -1
         else:
             self.__log_to_file("User is validated for crawling!")
             return 1
