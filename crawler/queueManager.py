@@ -35,7 +35,7 @@ def get_unfinished_users():
     while True:
         with driver.session() as db:
             try:
-                results = db.run(query).data()['user_ids']
+                results = db.run(query).data()[0]['user_ids']
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Getting unfinished users failed." % exc)
@@ -43,8 +43,9 @@ def get_unfinished_users():
                 continue
     user_list = []
     for user_id in results:
-        if ("temp_%s.txt" % unifinished_user) in os.listdir("temp"):
+        if ("temp_%s.txt" % user_id) in os.listdir("temp"):
             user_list.append(user_id)
+    __log_to_file("Adding %s old users to the crawler queue." % len(user_list))
     return user_list
 
 
@@ -57,13 +58,13 @@ def get_next_crawler_users(user_list, priority=1):
     query = "MATCH (a:PRIORITY%s) " % priority
     query += "REMOVE a:PRIORITY%s " % priority
     query += "SET a:QUEUED "
-    query += "RETURN COLLECT(a.uid) as users "
-    query += "LIMIT %s" % remaining_users
+    query += "WITH a.uid as uids LIMIT %s " % remaining_users
+    query += "RETURN COLLECT(uids) as users "
 
     while True:
         with driver.session() as db:
             try:
-                results = db.run(query).data()['users']
+                results = db.run(query).data()[0]['users']
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Getting priority users failed." % exc)
@@ -94,6 +95,7 @@ def __log_to_file(message):
     now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
     with open("log/queue_manager.log", 'a') as log_file:
         log_file.write(now + message + '\n')
+    print(now + message + '\n')
 
 
 def __connect_to_db():
@@ -156,12 +158,12 @@ if __name__ == '__main__':
 
     while True:
         if q.empty():
+            __log_to_file("Filling crawler queue.")
             for user in get_next_crawler_users([]):
                 q.put_nowait(user)
-                __log_to_file("Filling crawler queue.")
         if write_q.empty():
+            __log_to_file("Filling writer queue")
             for user in get_next_writer_users():
                 write_q.put_nowait(user)
-                __log_to_file("Filling writer queue")
         time.sleep(10)
 

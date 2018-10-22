@@ -39,7 +39,7 @@ class Writer:
         empty_state = True if self.write_q.empty() else False
         while True:
             if self.write_q.empty():
-                if not empty_state:
+                if empty_state:
                     self.__log_to_file("Writing queue empty. Waiting...\n\n\n")
                     empty_state = True
                 time.sleep(10)
@@ -47,10 +47,10 @@ class Writer:
             empty_state = False
             file_name = self.write_q.get()
             self.db_write(file_name)
-            os.remove(file_name)
+            os.remove("temp/" + file_name)
 
     def db_write(self, file_name):
-        user_id = file_name[5:].split('_')[0]
+        user_id = file_name.split('_')[0]
         if file_name[-8:-4] == 'save':
             self.__log_to_file("WRITING: %s" % user_id)
             self.__delete_old_relations(user_id)

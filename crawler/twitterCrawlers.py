@@ -11,7 +11,8 @@ class Crawler:
     FOLLOWERS_IDS = "followers/ids"
     RATE_LIMIT = "application/rate_limit_status"
 
-    def __init__(self, q, write_q, name):
+    def __init__(self, q, name):
+        self.q = q
         self.name = name
         self.languages = ["de", "en"]
         self.__log_to_file(self.name + " is initialized.")
@@ -20,11 +21,6 @@ class Crawler:
 
         self.app_token = os.environ.get('APP_TOKEN')
         self.app_secret = os.environ.get('APP_SECRET')
-
-        self.q = q
-
-        # Eliminating the use of locks for now
-        # self.lock = lock;
 
         self.__get_user_auth()
         self.run()
