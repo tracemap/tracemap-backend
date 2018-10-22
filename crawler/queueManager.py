@@ -4,11 +4,17 @@ import time
 import os
 
 from twitterCrawlers import Crawler
-from newDatabaseWriter import Writer
+from databaseWriter import Writer
 
 
-def get_uncrawled_list():
+def get_unfinished_users():
+    """
+    Get all unfinished changes from the previous session.
+    Reset :BUSYTOKEN labels to :TOKEN.
+    Return users which already have a :QUEUED label.
+    """
 
+    # reset token used by the previous session
     token_query = "MATCH (h:BUSYTOKEN) "
     token_query += "SET h:TOKEN REMOVE h:BUSYTOKEN"
 
@@ -19,64 +25,69 @@ def get_uncrawled_list():
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Resetting tokens failed." % exc)
+                time.sleep(3)
                 continue
 
+    # request all database users having a :QUEUED label.
     query = "MATCH (a:QUEUED) "
-    query += "RETURN a.uid as uid"
+    query += "RETURN COLLECT(a.uid) as user_ids"
 
     while True:
         with driver.session() as db:
             try:
-                results = db.run(query)
+                results = db.run(query).data()['user_ids']
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Getting unfinished users failed." % exc)
+                time.sleep(3)
                 continue
-
     user_list = []
-    for unfinished_user in results:
-        uid = unfinished_user['uid']
-        pre_saved = '%s_save.txt' % uid in os.listdir("temp")
-        pre_skipped = '%s_skip.txt' % uid in os.listdir("temp")
-        pre_deleted = '%s_delete.txt' % uid in os.listdir("temp")
-        if not (pre_saved or pre_skipped or pre_deleted):
-            user_list.append(uid)
+    for user_id in results:
+        if ("temp_%s.txt" % unifinished_user) in os.listdir("temp"):
+            user_list.append(user_id)
     return user_list
 
 
-# this function is checking for users from the highest
-# priority (1) to the lowest (3) and adds them to the batch
-# until it is filled.
-def get_priority_users(user_list, priority=1):
-
-    remaining_users = batch_size - len(user_list)
+def get_next_crawler_users(user_list, priority=1):
+    """
+    Get the next batch of users to refill the crawler queue.
+    """
+    remaining_users = queue_size - len(user_list)
 
     query = "MATCH (a:PRIORITY%s) " % priority
     query += "REMOVE a:PRIORITY%s " % priority
     query += "SET a:QUEUED "
-    query += "RETURN a.uid as uid "
+    query += "RETURN COLLECT(a.uid) as users "
     query += "LIMIT %s" % remaining_users
 
     while True:
         with driver.session() as db:
             try:
-                results = db.run(query).data()
+                results = db.run(query).data()['users']
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Getting priority users failed." % exc)
+                time.sleep(3)
                 continue
 
-    for priority_user in results:
-        user_list.append(priority_user['uid'])
+    for user_id in results:
+        user_list.append(user_id)
 
     __log_to_file("Round of PRIORITY%s users, %s users so far in the batch." % (priority, len(user_list)))
 
-    if len(user_list) == batch_size or priority == 3:
+    if len(user_list) == queue_size or priority == 3:
         return user_list
     else:
         priority += 1
-        __log_to_file("Going to next priority, %s users remaining." % (batch_size - len(user_list)))
-        return get_priority_users(user_list, priority)
+        __log_to_file("Going to next priority, %s users remaining." % (queue_size - len(user_list)))
+        return get_next_crawler_users(user_list, priority)
+
+def get_next_writer_users():
+    user_files = os.listdir("temp")
+    filter(lambda x: "temp" not in x, user_files)
+    user_files.sort(key = lambda x: os.path.getmtime("temp/" + x))
+    return user_files[:write_queue_size]
+    
 
 
 def __log_to_file(message):
@@ -108,9 +119,8 @@ if __name__ == '__main__':
         os.remove("log/"+log_file)
     __log_to_file("All log files removed.")
 
-    queue_size = 100
-    write_queue_size = 3000
-    batch_size = 500
+    queue_size = 200
+    write_queue_size = 200
     num_crawlers = 20
     num_writers = 1
 
@@ -119,10 +129,10 @@ if __name__ == '__main__':
     q = multiprocessing.Queue(queue_size)
     write_q = multiprocessing.Queue(write_queue_size)
 
-    __log_to_file("Queues set!")
+    __log_to_file("Queues initialized!")
 
     for i in range(num_crawlers):
-        crawler = multiprocessing.Process(target=Crawler, args=(q, write_q, "crawler%s" % i))
+        crawler = multiprocessing.Process(target=Crawler, args=(q, "crawler%s" % i))
         crawler.daemon = True
         crawler.start()
         __log_to_file("crawler%s" % i + " started!")
@@ -136,33 +146,22 @@ if __name__ == '__main__':
     for temp_file in os.listdir("temp"):
         if temp_file[:5] == "temp_":
             os.remove("temp/"+temp_file)
-            continue
-        write_q.put("temp/"+temp_file)
 
-    __log_to_file("Finished putting all %s crawled users in the write_queue!" % len(os.listdir("temp")))
-
-    uncrawled_list = get_uncrawled_list()
-
+    # get unfinished users and add them to the queue
+    uncrawled_list = get_unfinished_users()
     for uncrawled in uncrawled_list:
         q.put(uncrawled)
 
     __log_to_file("Finished putting all %s uncrawled users in the queue!" % len(uncrawled_list))
 
-    empty_state = True if q.empty() else False
-
     while True:
-        if not q.empty():
-            if empty_state:
-                __log_to_file("Queue not yet empty. Sleeping....\n")
-                empty_state = False
-            time.sleep(30)
-            continue
-        empty_state = True
-        __log_to_file("Getting new batch...")
-        for user in get_priority_users([]):
-            # labels = get_user_labels(user)
-            # if 'QUEUED' not in labels:
-            #     __log_to_file("QUEUED label missing in user %s (%s)" % (user, labels))
-            #     continue
-            q.put(user)
+        if q.empty():
+            for user in get_next_crawler_users([]):
+                q.put_nowait(user)
+                __log_to_file("Filling crawler queue.")
+        if write_q.empty():
+            for user in get_next_writer_users():
+                write_q.put_nowait(user)
+                __log_to_file("Filling writer queue")
+        time.sleep(10)
 

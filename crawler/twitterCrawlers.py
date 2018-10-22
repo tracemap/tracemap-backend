@@ -7,7 +7,6 @@ import math
 
 
 class Crawler:
-    LANGUAGES = ["de", "en"]
     USERS_SHOW = "users/show"
     FOLLOWERS_IDS = "followers/ids"
     RATE_LIMIT = "application/rate_limit_status"
@@ -23,7 +22,6 @@ class Crawler:
         self.app_secret = os.environ.get('APP_SECRET')
 
         self.q = q
-        self.write_q = write_q
 
         # Eliminating the use of locks for now
         # self.lock = lock;
@@ -90,17 +88,9 @@ class Crawler:
             else:
                 self.__log_to_file("2 - UNKNOWN ERROR -> %s." % error_response)
                 return 0
-        # elif not self.__is_language_valid(parsed_response["lang"]):
-        #     self.__log_to_file("Language outside of TraceMap's scope!")
-        #     return -1
         else:
             self.__log_to_file("User is validated for crawling!")
             return 1
-
-    def __is_language_valid(self, language):
-        # will there be no language check anymore?
-        # return language in self.languages
-        return True
 
     def __get_followers(self, user_id):
         delete = False
@@ -159,7 +149,6 @@ class Crawler:
     def __finish_update(self, user_id, num_followers):
         # Some verbosity about the kind of db write
         os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
-        self.write_q.put("temp/%s_save.txt" % user_id)
         self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" %
                            (user_id, num_followers))
 
@@ -167,16 +156,7 @@ class Crawler:
         # delete invalid user and connections
         with open("temp/%s_delete.txt" % user_id, "a") as temp_file:
             temp_file.write('')
-        self.write_q.put("temp/%s_delete.txt" % user_id)
         self.__log_to_file("User %s ready to be deleted.\n\n\n" % user_id)
-
-    def __skip_user(self, user_id):
-        # skipping users having the wrong language
-        # by setting their timestamp to a high number
-        with open("temp/%s_skip.txt" % user_id, "a") as temp_file:
-            temp_file.write('')
-        self.write_q.put("temp/%s_skip.txt" % user_id)
-        self.__log_to_file("User %s ready to be skipped.\n\n\n" % user_id)
 
     def __check_error(self, response):
         error_response = ""
