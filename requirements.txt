@@ -6,3 +6,4 @@ TwitterAPI
 uwsgi
 sty
 werkzeug
+elastic-apm[flask]
