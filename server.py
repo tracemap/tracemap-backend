@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
 import api.twitter.twitterApi as twitterApi
@@ -9,6 +9,11 @@ import api.auth.betaAuth as betaAuth
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
+
+"""Request health status of the api"""
+@app.route('/status')
+def health_check():
+    return Response("OK", status=200)
 
 """Takes a single tweet_id string and returns a list of retweeter id strings"""
 @app.route('/twitter/get_retweeters/<string:tweet_id>')
