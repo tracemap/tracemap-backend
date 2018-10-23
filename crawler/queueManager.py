@@ -21,7 +21,9 @@ def get_unfinished_users():
     while True:
         with driver.session() as db:
             try:
+                __log_to_file("Resetting old BUSYTOKEN")
                 db.run(token_query)
+                __log_to_file("OLDBUSYTOKEN reset done.")
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Resetting tokens failed." % exc)
@@ -35,15 +37,19 @@ def get_unfinished_users():
     while True:
         with driver.session() as db:
             try:
+                __log_to_file("Getting unfinished users")
                 results = db.run(query).data()[0]['user_ids']
+                __log_to_file("%s unfinished users in the database." % len(results))
                 break
             except Exception as exc:
                 __log_to_file("ERROR -> %s. Getting unfinished users failed." % exc)
                 time.sleep(3)
                 continue
     user_list = []
+    temp_folder_files = os.listdir("temp")
+    temp_files = [tf for tf in temp_folder_files if "temp" in tf]
     for user_id in results:
-        if ("temp_%s.txt" % user_id) in os.listdir("temp"):
+        if ("temp_%s.txt" % user_id) in temp_files:
             user_list.append(user_id)
     __log_to_file("Adding %s old users to the crawler queue." % len(user_list))
     return user_list
@@ -85,7 +91,8 @@ def get_next_crawler_users(user_list, priority=1):
 
 def get_next_writer_users():
     user_files = os.listdir("temp")
-    filter(lambda x: "temp" not in x, user_files)
+    user_files = user_files[:1000]
+    user_files = [uf for uf in user_files if "temp" not in uf and uf not in last_write_q]
     user_files.sort(key = lambda x: os.path.getmtime("temp/" + x))
     return user_files[:write_queue_size]
     
@@ -125,6 +132,8 @@ if __name__ == '__main__':
     write_queue_size = 200
     num_crawlers = 20
     num_writers = 1
+    last_q = []
+    last_write_q = []
 
     driver = __connect_to_db()
 
@@ -154,16 +163,30 @@ if __name__ == '__main__':
     for uncrawled in uncrawled_list:
         q.put(uncrawled)
 
-    __log_to_file("Finished putting all %s uncrawled users in the queue!" % len(uncrawled_list))
-
     while True:
-        if q.empty():
+        if q.qsize() < 20:
             __log_to_file("Filling crawler queue.")
-            for user in get_next_crawler_users([]):
-                q.put_nowait(user)
-        if write_q.empty():
+            next_crawler_batch = get_next_crawler_users([])
+            this_q = []
+            for user in next_crawler_batch:
+                if user not in last_q:
+                    try:
+                        q.put_nowait(user)
+                        this_q.append(user)
+                    except:
+                        break
+            last_q = this_q
+        if write_q.qsize() < 20:
             __log_to_file("Filling writer queue")
-            for user in get_next_writer_users():
-                write_q.put_nowait(user)
+            next_writer_batch = get_next_writer_users()
+            this_write_q = []
+            for user in next_writer_batch:
+                if user not in last_write_q:
+                    try:
+                        write_q.put_nowait(user)
+                        this_write_q.append(user)
+                    except:
+                        break
+            last_write_q = this_write_q
         time.sleep(10)
 
