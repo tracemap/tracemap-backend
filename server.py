@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
+from elasticapm.contrib.flask import ElasticAPM
+
 import api.twitter.twitterApi as twitterApi
 import api.twitter.tweet as tweet
 import api.neo4j.neo4jApi as neo4jApi
@@ -8,6 +10,7 @@ import api.newsletter.newsletterApi as newsletterApi
 import api.auth.betaAuth as betaAuth
 
 app = Flask(__name__)
+apm = ElasticAPM(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 """Request health status of the api"""
