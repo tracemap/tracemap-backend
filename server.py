@@ -10,7 +10,7 @@ import api.newsletter.newsletterApi as newsletterApi
 import api.auth.betaAuth as betaAuth
 
 app = Flask(__name__)
-apm = ElasticAPM(app)
+apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 """Request health status of the api"""
