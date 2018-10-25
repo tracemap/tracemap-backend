@@ -96,12 +96,12 @@ def get_user_info(user_id):
 
 def label_unknown_users(user_ids):
     time_now = math.floor(time.time())
-    one_month = 60 * 60 * 24 * 30
+    three_month = 60 * 60 * 24 * 90
 
     query = "WITH %s AS USERS " % user_ids
     query += "FOREACH (U IN USERS | MERGE (X:USER{uid:U}) "
     query += "FOREACH (ignoreMe in CASE WHEN (X:PRIORITY2 OR "
-    query += "(X:PRIORITY3 AND X.timestamp < %s) OR " % (time_now - one_month)
+    query += "(X:PRIORITY3 AND X.timestamp < %s) OR " % (time_now - three_month)
     query += "LABELS(X)=['USER']) "
     query += "THEN [1] ELSE [] END | "
     query += "SET X:PRIORITY1 REMOVE X:PRIORITY2, X:PRIORITY3))"
@@ -110,9 +110,19 @@ def label_unknown_users(user_ids):
     query2 = "WITH %s AS USERS " % user_ids
     query2 += "MATCH (u:PRIORITY1) "
     query2 += "WHERE u.uid IN USERS "
-    query2 += "RETURN u.uid as uid"
-    database_response = __request_database(query2)
-    return list(database_response)
+    query2 += "RETURN COLLECT(u.uid) as uncrawled"
+    uncrawled = __request_database(query2)[0]["uncrawled"]
+
+    query2 = "WITH %s AS USERS " % user_ids
+    query2 += "MATCH (u:QUEUED) "
+    query2 += "WHERE u.uid IN USERS "
+    query2 += "RETURN COLLECT(u.uid) as unwritten"
+    unwritten = __request_database(query2)[0]["unwritten"]
+
+    return {
+        "uncrawled": uncrawled,
+        "unwritten": unwritten
+    }
 
 def add_beta_user(user_obj: dict):
     if 'username' in user_obj and \
