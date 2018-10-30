@@ -78,7 +78,7 @@ def get_next_crawler_users(user_list, priority=1):
                 continue
     # label priority1 users with the prio_ prefix
     if priority == 1:
-        user_list = ["prio_%s" % user for user in user_list]
+        results = ["prio_%s" % user for user in results]
     user_list += results
 
     __log_to_file("Round of PRIORITY%s users, %s users so far in the batch." % (priority, len(user_list)))
