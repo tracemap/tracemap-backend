@@ -13,54 +13,106 @@ app = Flask(__name__)
 apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-"""Request health status of the api"""
+def __is_session_valid(email, session_token):
+    if email and session_token:
+        response = betaAuth.check_session(email, session_token)
+        if response['session'] == True:
+            return True
+        else:
+            return False
+    else:
+        return False
+
 @app.route('/status')
 def health_check():
+    """Request health status of the api"""
     return Response("OK", status=200)
 
-"""Takes a single tweet_id string and returns a list of retweeter id strings"""
-@app.route('/twitter/get_retweeters/<string:tweet_id>')
-def twitter_get_retweeters(tweet_id):
-    return jsonify(twitterApi.get_retweeters(tweet_id))
+@app.route('/twitter/get_tweet_info', methods = ['POST'])
+def twitter_get_tweet_info():
+    """
+    Returns shortform of twitter_get_tweet_data
+    to get e.g. the number of retweets for a tweet
+    """
+    body = request.get_json()
+    session_token = body['session_token']
+    email = body['email']
+    tweet_id = body['tweet_id']
+    if __is_session_valid(email, session_token):
+        return jsonify(twitterApi.get_tweet_info(tweet_id))
+    else:
+        return Response("Forbidden", status=403)
 
-"""Takes a single tweet_id string and returns a tweet_info json object"""
-@app.route('/twitter/get_tweet_info/<string:tweet_id>')
-def twitter_get_tweet_info(tweet_id):
-    return jsonify(twitterApi.get_tweet_info(tweet_id))
+@app.route('/twitter/get_tweet_data', methods = ['POST'])
+def twitter_get_tweet_data():
+    """
+    Returns data of a tweet to get the detailed
+    tweet data (retweeter_ids etc.)
+    """
+    body = request.get_json()
+    session_token = body['session_token']
+    email = body['email']
+    tweet_id = body['tweet_id']
+    if __is_session_valid(email, session_token):
+        return jsonify(twitterApi.get_tweet_data(tweet_id))
+    else:
+        return Response("Forbidden", status=403)
 
-@app.route('/twitter/get_tweet_data/<string:tweet_id>')
-def twitter_get_tweet_data(tweet_id):
-    return jsonify(twitterApi.get_tweet_data(tweet_id))
+@app.route('/twitter/get_user_timeline', methods = ['POST'])
+def twitter_get_user_timeline():
+    """
+    Takes a user_id and returns the last 200
+    tweets/retweets of this user
+    """
+    body = request.get_json()
+    session_token = body['session_token']
+    email = body['email']
+    user_id = body['user_id']
+    if __is_session_valid(email, session_token):
+        return jsonify(twitterApi.get_user_timeline(user_id))
+    else:
+        return Response("Forbidden", status=403)
 
-@app.route('/twitter/get_user_timeline/<string:user_id>')
-def twitter_get_user_timeline(user_id):
-    return jsonify(twitterApi.get_user_timeline(user_id))
-
-"""Takes a comma seperated list of user_ids
+@app.route('/twitter/get_user_info', methods = ['POST'])
+def twitter_get_user_info():
+    """
+    Takes a comma seperated list of user_ids
     returns a user_info json object
-"""
-@app.route('/twitter/get_user_info/<string:user_ids>')
-def twitter_get_user_info(user_ids):
-    return jsonify(twitterApi.get_user_info(user_ids.split(",")))
+    """
+    body = request.get_json()
+    session_token = body['session_token']
+    email = body['email']
+    user_ids = body['user_ids']
+    if __is_session_valid(email, session_token):
+        return jsonify(twitterApi.get_user_info(user_ids))
+    else:
+        return Response("Forbidden", status=403)
 
-@app.route('/tweet/get_html/<string:tweet_id>')
-def tweet_get_html(tweet_id):
-    return jsonify(tweet.get_html(tweet_id))
+@app.route('/neo4j/get_followers', methods = ['POST'])
+def neo4j_get_followers():
+    """
+    Takes a comma seperated list of user_ids and returns the subnetwork of followship
+    relations between those users
+    """
+    body = request.get_json()
+    session_token = body['session_token']
+    email = body['email']
+    user_ids = body['user_ids']
+    if __is_session_valid(email, session_token):
+        return jsonify(neo4jApi.get_followers(user_ids))
+    else:
+        return Response("Forbidden", status=403)
 
-"""Takes a comma seperated list of user_ids and returns the subnetwork of followship
-   relations between those users
-"""
-@app.route('/neo4j/get_followers/<string:user_ids>')
-def neo4j_get_followers(user_ids):
-    return jsonify(neo4jApi.get_followers(user_ids.split(",")))
-
-@app.route('/neo4j/get_user_info/<string:user_id>')
-def neo4j_get_user_info(user_id):
-    return jsonify(neo4jApi.get_user_info(user_id))
-
-@app.route('/neo4j/label_unknown_users/<string:user_ids>')
-def neo4j_label_unknown_users(user_ids):
-    return jsonify(neo4jApi.label_unknown_users(user_ids.split(",")))
+@app.route('/neo4j/label_unknown_users', methods = ['POST'])
+def neo4j_label_unknown_users():
+    body = request.get_json()
+    session_token = body['session_token']
+    email = body['email']
+    user_ids = body['user_ids']
+    if __is_session_valid(email, session_token):
+        return jsonify(neo4jApi.label_unknown_users(user_ids))
+    else:
+        return Response("Forbidden", status=403)
 
 @app.route('/newsletter/save_subscriber', methods= ['POST'])
 def newsletter_save_subscriber():
