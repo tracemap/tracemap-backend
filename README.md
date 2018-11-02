@@ -1,5 +1,16 @@
 # Tracemap Backend
 
+## Monitoring
+
+- [[Netcup] Elastic Cluster](https://monitoring.tracemap.info/app/monitoring)
+- [[Netcup] twitterLoginNode](https://monitoring.tracemap.info/app/apm#/tracemap-twitterLoginNode/transactions?_g=())
+- [[Netcup] tracemap-api](https://monitoring.tracemap.info/app/apm#/tracemap-backend-api/transactions?_g=())
+- [[Netcup] Netcup host](https://monitoring.tracemap.info/app/kibana#/dashboard/79ffd6e0-faa0-11e6-947f-177f697178b8?_g=())
+- [[Netcup] Netcup traffic flow](https://monitoring.tracemap.info/app/kibana#/dashboard/Packetbeat-Flows?_g=())
+- [[Netcup] Netcup nginx](https://monitoring.tracemap.info/app/kibana#/dashboard/55a9e6e0-a29e-11e7-928f-5dbe6f6f5519?_g=())
+- [HTTP, TCP, ICMP Heartbeats](https://monitoring.tracemap.info/app/kibana#/dashboard/3406ee80-deb0-11e8-807c-ed3005088bdb?_g=(refreshInterval%3A(pause%3A!t%2Cvalue%3A0)%2Ctime%3A(from%3Anow-15m%2Cmode%3Aquick%2Cto%3Anow)))
+
+
 ## How to run the project
 
 First you will need to configure your environment variables, create a file named `.env` on the root folder of the project with this content:
