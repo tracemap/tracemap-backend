@@ -35,13 +35,17 @@ def twitter_get_tweet_info():
     to get e.g. the number of retweets for a tweet
     """
     body = request.get_json()
-    session_token = body['session_token']
-    email = body['email']
-    tweet_id = body['tweet_id']
-    if __is_session_valid(email, session_token):
-        return jsonify(twitterApi.get_tweet_info(tweet_id))
+    if body and all (keys in body for keys in 
+    ("session_token","email", "tweet_id")):
+        session_token = body['session_token']
+        email = body['email']
+        tweet_id = body['tweet_id']
+        if __is_session_valid(email, session_token):
+            return jsonify(twitterApi.get_tweet_info(tweet_id))
+        else:
+            return Response("Forbidden", status=403)
     else:
-        return Response("Forbidden", status=403)
+        return Response("Bad Request", status=400)
 
 @app.route('/twitter/get_tweet_data', methods = ['POST'])
 def twitter_get_tweet_data():
@@ -50,13 +54,18 @@ def twitter_get_tweet_data():
     tweet data (retweeter_ids etc.)
     """
     body = request.get_json()
-    session_token = body['session_token']
-    email = body['email']
-    tweet_id = body['tweet_id']
-    if __is_session_valid(email, session_token):
-        return jsonify(twitterApi.get_tweet_data(tweet_id))
+    if body and all (keys in body for keys in 
+    ("session_token","email", "tweet_id")):
+        session_token = body['session_token']
+        email = body['email']
+        tweet_id = body['tweet_id']
+        if __is_session_valid(email, session_token):
+            return jsonify(twitterApi.get_tweet_data(tweet_id))
+        else:
+            return Response("Forbidden", status=403)
     else:
-        return Response("Forbidden", status=403)
+        return Response("Bad Request", status=400)
+        
 
 @app.route('/twitter/get_user_timeline', methods = ['POST'])
 def twitter_get_user_timeline():
@@ -65,13 +74,17 @@ def twitter_get_user_timeline():
     tweets/retweets of this user
     """
     body = request.get_json()
-    session_token = body['session_token']
-    email = body['email']
-    user_id = body['user_id']
-    if __is_session_valid(email, session_token):
-        return jsonify(twitterApi.get_user_timeline(user_id))
+    if body and all (keys in body for keys in 
+    ("session_token","email", "user_id")):
+        session_token = body['session_token']
+        email = body['email']
+        user_id = body['user_id']
+        if __is_session_valid(email, session_token):
+            return jsonify(twitterApi.get_user_timeline(user_id))
+        else:
+            return Response("Forbidden", status=403)
     else:
-        return Response("Forbidden", status=403)
+        return Response("Bad Request", status=400)
 
 @app.route('/twitter/get_user_info', methods = ['POST'])
 def twitter_get_user_info():
@@ -80,13 +93,17 @@ def twitter_get_user_info():
     returns a user_info json object
     """
     body = request.get_json()
-    session_token = body['session_token']
-    email = body['email']
-    user_ids = body['user_ids']
-    if __is_session_valid(email, session_token):
-        return jsonify(twitterApi.get_user_info(user_ids))
+    if body and all (keys in body for keys in 
+    ("session_token","email", "user_ids")):
+        session_token = body['session_token']
+        email = body['email']
+        user_ids = body['user_ids']
+        if __is_session_valid(email, session_token):
+            return jsonify(twitterApi.get_user_info(user_ids))
+        else:
+            return Response("Forbidden", status=403)
     else:
-        return Response("Forbidden", status=403)
+        return Response("Bad Request", status=400)
 
 @app.route('/neo4j/get_followers', methods = ['POST'])
 def neo4j_get_followers():
@@ -95,73 +112,108 @@ def neo4j_get_followers():
     relations between those users
     """
     body = request.get_json()
-    session_token = body['session_token']
-    email = body['email']
-    user_ids = body['user_ids']
-    if __is_session_valid(email, session_token):
-        return jsonify(neo4jApi.get_followers(user_ids))
+    if body and all (keys in body for keys in 
+    ("session_token","email", "user_ids")):
+        session_token = body['session_token']
+        email = body['email']
+        user_ids = body['user_ids']
+        if __is_session_valid(email, session_token):
+            return jsonify(neo4jApi.get_followers(user_ids))
+        else:
+            return Response("Forbidden", status=403)
     else:
-        return Response("Forbidden", status=403)
+        return Response("Bad Request", status=400)
 
 @app.route('/neo4j/label_unknown_users', methods = ['POST'])
 def neo4j_label_unknown_users():
     body = request.get_json()
-    session_token = body['session_token']
-    email = body['email']
-    user_ids = body['user_ids']
-    if __is_session_valid(email, session_token):
-        return jsonify(neo4jApi.label_unknown_users(user_ids))
+    if body and all (keys in body for keys in 
+    ("session_token","email", "user_ids")):
+        session_token = body['session_token']
+        email = body['email']
+        user_ids = body['user_ids']
+        if __is_session_valid(email, session_token):
+            return jsonify(neo4jApi.label_unknown_users(user_ids))
+        else:
+            return Response("Forbidden", status=403)
     else:
-        return Response("Forbidden", status=403)
+        return Response("Bad Request", status=400)
 
 @app.route('/newsletter/save_subscriber', methods= ['POST'])
 def newsletter_save_subscriber():
     body = request.get_json()
-    email = body['email']
-    return jsonify(newsletterApi.save_subscriber(email))
+    if body and "email" in body:
+        email = body['email']
+        return jsonify(newsletterApi.save_subscriber(email))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/check_password', methods = ['POST'])
 def auth_check_password():
     body = request.get_json()
-    email = body['email']
-    password = body['password']
-    return jsonify(betaAuth.check_password(email, password))
+    if body and all (keys in body for keys in 
+    ("password","email")):
+        email = body['email']
+        password = body['password']
+        return jsonify(betaAuth.check_password(email, password))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/add_user', methods = ['POST'])
 def auth_add_user():
     body = request.get_json()
-    email = body['email']
-    username = body['username']
-    return jsonify(betaAuth.add_user(username, email))
+    if body and all (keys in body for keys in 
+    ("username","email")):
+        email = body['email']
+        username = body['username']
+        return jsonify(betaAuth.add_user(username, email))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/delete_user', methods = ['POST'])
 def auth_delete_user():
     body = request.get_json()
-    email = body['email']
-    password = body['password']
-    return jsonify(betaAuth.delete_user(email, password))
+    if body and all (keys in body for keys in 
+    ("password","email")):
+        email = body['email']
+        password = body['password']
+        return jsonify(betaAuth.delete_user(email, password))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/change_password', methods = ['POST'])
 def auth_change_password():
     body = request.get_json()
-    email = body['email']
-    old_password = body['old_password']
-    new_password = body['new_password']
-    return jsonify(betaAuth.change_password(email, old_password, new_password))
+    if body and all (keys in body for keys in 
+    ("email", "old_password", "new_password")):
+        email = body['email']
+        old_password = body['old_password']
+        new_password = body['new_password']
+        return jsonify(betaAuth.change_password(email, old_password, new_password))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/get_user_data', methods = ['POST'])
 def auth_get_user_data():
     body = request.get_json()
-    email = body['email']
-    session_token = body['session_token']
-    return jsonify(betaAuth.get_user_data(email, session_token))
+    if body and all (keys in body for keys in 
+    ("email", "session_token")):
+        email = body['email']
+        session_token = body['session_token']
+        return jsonify(betaAuth.get_user_data(email, session_token))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/check_session', methods = ['POST'])
 def auth_check_session():
     body = request.get_json()
-    email = body['email']
-    session_token = body['session_token']
-    return jsonify(betaAuth.check_session(email, session_token))
+    if body and all (keys in body for keys in 
+    ("session_token","email")):
+        email = body['email']
+        session_token = body['session_token']
+        return jsonify(betaAuth.check_session(email, session_token))
+    else:
+        return Response("Bad Request", status=400)
 
 @app.route('/auth/reset_password/<string:email>/<string:reset_token>')
 def auth_reset_password(email, reset_token):
@@ -170,8 +222,12 @@ def auth_reset_password(email, reset_token):
 @app.route('/auth/request_reset_password', methods = ['POST'])
 def auth_request_reset_password():
     body = request.get_json()
-    email = body['email']
-    return jsonify(betaAuth.request_reset_user(email))
+    if body and "email" in body:
+        email = body['email']
+        return jsonify(betaAuth.request_reset_user(email))
+    else:
+        return Response("Bad Request", status=400)
+    
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
