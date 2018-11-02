@@ -16,7 +16,7 @@ cors = CORS(app, resources={r"/*": {"origins": "*"}})
 def __is_session_valid(email, session_token):
     if email and session_token:
         response = betaAuth.check_session(email, session_token)
-        if response['session'] == True:
+        if 'session' in response and response['session'] == True:
             return True
         else:
             return False
