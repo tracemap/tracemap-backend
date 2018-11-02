@@ -55,14 +55,17 @@ class Crawler:
             self.crawl(user_id)
 
     def crawl(self, user_id):
+        prio = False
+        if "prio_" in user_id:
+            user_id = user_id[5:]
+            prio = True
         valid_int = self.__is_user_valid(user_id)
         if valid_int == 1:
             self.__log_to_file("CRAWLING: %s" % user_id)
-            self.__get_followers(user_id)
+            if self.__get_followers(user_id):
+                self.__finish_update(user_id, prio)
         elif valid_int == 0:
             self.__delete_user(user_id)
-        else:
-            self.__skip_user(user_id)
 
     def __is_user_valid(self, user_id):
         while True:
@@ -89,7 +92,6 @@ class Crawler:
             return 1
 
     def __get_followers(self, user_id):
-        delete = False
         cursor = -1
         num_followers = 0
         while cursor != 0:
@@ -117,8 +119,7 @@ class Crawler:
                         continue
                     elif error_response == 'invalid user':
                         self.__delete_user(user_id)
-                        delete = True
-                        break
+                        return False
                     else:
                         self.__log_to_file("6 - UNKNOWN ERROR -> %s (while trying to get followers from user %s). "
                                            "parsed_response = %s" % (error_response, user_id, parsed_response))
@@ -126,9 +127,9 @@ class Crawler:
                 cursor = parsed_response["next_cursor"]
             else:
                 cursor = 0
+        self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" % (user_id, num_followers))
+        return True
 
-        if not delete:
-            self.__finish_update(user_id, num_followers)
 
     def __save_user_followers(self, user_id, followers):
         # Add a batch of followers to the db
@@ -142,11 +143,12 @@ class Crawler:
             temp_file.write(line+'\n')
         self.__log_to_file("Batch of followers of user %s saved to file." % user_id)
 
-    def __finish_update(self, user_id, num_followers):
+    def __finish_update(self, user_id, prio):
         # Some verbosity about the kind of db write
-        os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
-        self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" %
-                           (user_id, num_followers))
+        if prio:
+            os.rename("temp/temp_%s.txt" % user_id, "temp/prio_%s_save.txt" % user_id)
+        else:    
+            os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
 
     def __delete_user(self, user_id):
         # delete invalid user and connections
