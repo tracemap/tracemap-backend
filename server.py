@@ -17,7 +17,7 @@ def __is_session_valid(email: str, session_token: str):
 
     if email and session_token:
         response = betaAuth.check_session(email, session_token)
-        return 'session' in response and response['session'] == True
+        return response.get('session', False)
     else:
         return False
 
