@@ -131,9 +131,12 @@ def get_user_info( uid_list):
     return results
 
 def get_tweet_info( tweet_id):
-    """Request tweet information, return a dictionary"""
-    data = api.request('statuses/lookup', {'id': tweet_id})
-    return __format_tweet_info(data.json())
+    """Request little tweet information, return a dictionary"""
+    data = api.request('statuses/lookup', {'id': tweet_id}).json()
+    if len(data) == 0:
+        return {"response": None}
+    else:
+        return __format_tweet_info(data)
 
 def get_retweeters( tweet_id):
     """Request the 100 last retweet ids, return them as a list"""
@@ -150,12 +153,9 @@ def get_tweet_data( tweet_id):
     """Request full tweet information, including retweet and user information"""
     url = "statuses/retweets/:%s" % tweet_id
     data = api.request(url, {'count': 100}).json()
-    print( tweet_id)
-    print( url)
-    print("%s" % len(data))
     results = {}
     if len(data) == 0:
-        results['response'] = [];
+        results['response'] = []
     else:
         results['response'] = __format_tweet_data(data)
     return results
@@ -166,4 +166,4 @@ def get_user_timeline( user_id):
 
     tweets = __request_user_timeline( user_id)
     return tweets
-
+ 
