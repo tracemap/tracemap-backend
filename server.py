@@ -14,10 +14,10 @@ app = Flask(__name__)
 apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-def __is_session_valid(email, session_token):
+def __is_session_valid(email: str, session_token: str):
     if email and session_token:
         response = betaAuth.check_session(email, session_token)
-        return 'session' in response and response['session'] == True
+        return response.get('session', False)
     else:
         return False
 
@@ -214,7 +214,7 @@ def auth_check_session():
         return Response("Bad Request", status=400)
 
 @app.route('/auth/reset_password/<string:email>/<string:reset_token>')
-def auth_reset_password(email, reset_token):
+def auth_reset_password(email: str, reset_token: str):
     return betaAuth.reset_password(email, reset_token)
 
 @app.route('/auth/request_reset_password', methods = ['POST'])
@@ -226,7 +226,7 @@ def auth_request_reset_password():
     else:
         return Response("Bad Request", status=400)
     
-@app.route('/logging/tracemap_generated', methods = ['POST'])
+@app.route('/logging/write_log', methods = ['POST'])
 def logging_tracemap_generated():
     required_parameters = (
         "email",
@@ -240,7 +240,8 @@ def logging_tracemap_generated():
         if __is_session_valid(email, session_token):
             log_object = body["log_object"]
             file_name = body["file_name"]
-            return logger.save_log(log_object, file_name)
+            log_object['email'] = email
+            return jsonify(logger.save_log(log_object, file_name))
         else:
             return Response("Forbidden", status=403)
     else:
