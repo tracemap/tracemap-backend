@@ -13,13 +13,11 @@ app = Flask(__name__)
 apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-def __is_session_valid(email, session_token):
+def __is_session_valid(email: str, session_token: str):
+
     if email and session_token:
         response = betaAuth.check_session(email, session_token)
-        if 'session' in response and response['session'] == True:
-            return True
-        else:
-            return False
+        return 'session' in response and response['session'] == True
     else:
         return False
 
@@ -216,7 +214,7 @@ def auth_check_session():
         return Response("Bad Request", status=400)
 
 @app.route('/auth/reset_password/<string:email>/<string:reset_token>')
-def auth_reset_password(email, reset_token):
+def auth_reset_password(email: str, reset_token: str):
     return betaAuth.reset_password(email, reset_token)
 
 @app.route('/auth/request_reset_password', methods = ['POST'])
