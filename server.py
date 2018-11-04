@@ -227,7 +227,7 @@ def auth_request_reset_password():
         return Response("Bad Request", status=400)
     
 @app.route('/logging/write_log', methods = ['POST'])
-def logging_tracemap_generated():
+def logging_write_log():
     required_parameters = (
         "email",
         "session_token",
