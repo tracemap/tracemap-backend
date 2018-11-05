@@ -76,9 +76,10 @@ def get_next_crawler_users(user_list, priority=1):
                 __log_to_file("ERROR -> %s. Getting priority users failed." % exc)
                 time.sleep(3)
                 continue
-
-    for user_id in results:
-        user_list.append(user_id)
+    # label priority1 users with the prio_ prefix
+    if priority == 1:
+        results = ["prio_%s" % user for user in results]
+    user_list += results
 
     __log_to_file("Round of PRIORITY%s users, %s users so far in the batch." % (priority, len(user_list)))
 
@@ -90,11 +91,26 @@ def get_next_crawler_users(user_list, priority=1):
         return get_next_crawler_users(user_list, priority)
 
 def get_next_writer_users():
+    '''
+    searches temp folder for user files and returns them sorted
+    with returning prio_ prefixed users first after deleting their
+    prefix.
+    '''
     user_files = os.listdir("temp")
-    user_files = user_files[:1000]
-    user_files = [uf for uf in user_files if "temp" not in uf and uf not in last_write_q]
-    user_files.sort(key = lambda x: os.path.getmtime("temp/" + x))
-    return user_files[:write_queue_size]
+    # get prio users 
+    prio_users = [uf for uf in user_files if "prio_" in uf and uf not in last_write_q]
+    prio_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
+    prio_users = prio_users[:write_queue_size]
+    # get not_prio users if not enough prio users
+    nonprio_users = []
+    if len(prio_users) < write_queue_size:
+        nonprio_users = [uf for uf in user_files if uf[0].isdigit() and uf not in last_write_q]
+        nonprio_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
+    # delete prefix from prio_users
+    [os.rename("temp/%s" % user, "temp/%s" % user[5:]) for user in prio_users]
+    prio_users = [user[5:] for user in prio_users]
+    next_users = prio_users + nonprio_users
+    return next_users[:write_queue_size]
     
 
 
@@ -183,10 +199,14 @@ if __name__ == '__main__':
             for user in next_writer_batch:
                 if user not in last_write_q:
                     try:
+                        last_write_q.append(user)
                         write_q.put_nowait(user)
-                        this_write_q.append(user)
                     except:
                         break
-            last_write_q = this_write_q
+            # keep last_write_q until its as big as the write_queue_size
+            # if exchanged with this_write_q at each iteration
+            # the writer is sometimes still writing an old user which is
+            # added again at the second iteration and causes errors
+            last_write_q = last_write_q [-write_queue_size:]
         time.sleep(10)
 

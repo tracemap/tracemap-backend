@@ -62,7 +62,7 @@ def get_followers(user_ids):
             followers_dictionary.update({user:[follower]})
         else:
             followers_dictionary[user].append(follower)
-    return {'response': followers_dictionary}
+    return followers_dictionary
 
 
 """This function does not create new nodes, users must be in database already"""
@@ -91,7 +91,7 @@ def get_user_info(user_id):
     """Just to be on the safe side"""
     if len(database_response) == 0:
         return {}
-    return {'response':{user_id:database_response[0]['user'].properties}}
+    return {user_id:database_response[0]['user'].properties}
 
 
 def label_unknown_users(user_ids):
