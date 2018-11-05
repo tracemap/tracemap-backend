@@ -3,23 +3,23 @@ import time
 import os
 
 from TwitterAPI import TwitterAPI
-from tokenProvider import Token
+from api.twitter.tokenProvider import Token
 
-class TTA:
+class TracemapTwitterApi:
 
-    def __request_twitter(self, route, params):
+    def __request_twitter(self, route: str, params: dict, route_extension=""):
         if not hasattr(self, route):
             token_instance = Token(route)
             setattr(self, route, token_instance)
         api = getattr(self, route).api
         while True:
             try:
-                response = api.request(route, params)
+                response = api.request("%s%s" % (route, route_extension), params)
             except Exception as exc:
                 print("Error while requesting Twitter: %s" % exc)
                 time.sleep(10)
                 continue
-            parsed_response = json.loads(response.text)
+            parsed_response = response.json()
             if parsed_response == []:
                 return parsed_response
             error_response = self.__check_error(api, parsed_response)
@@ -28,6 +28,7 @@ class TTA:
                     continue
                 else:
                     print('###Error from Twitter:%s\n###Route requested:%s\n###Params:%s' % (error_response, route, params))
+                    return {}
             else:
                 return parsed_response
 
@@ -50,7 +51,6 @@ class TTA:
             elif error_response == "Not authorized":
                 return "invalid user"
             else:
-                self.__log_to_file("7 - Unusual error response: %s" % error_response)
                 return error_response
 
     @staticmethod
@@ -64,20 +64,6 @@ class TTA:
             89: "Switch helper",
             131: "Internal error"
         }.get(code, "Unknown error %s" % code)
-
-    def request_user_timeline(self, user_id, include_rts = True):
-        params = {
-            'user_id': user_id, 
-            'exclude_replies': False,
-            'count': 200
-        }
-        if not include_rts:
-            params['include_rts'] = False
-        route = "statuses/user_timeline"
-        data = self.__request_twitter(route, params)
-        return data
-
-            
 
     def get_user_info(self, uid_list):
         """Request user information, return a dictionary"""
@@ -100,37 +86,43 @@ class TTA:
         else:
             return data
 
-    # def get_retweeters( tweet_id):
-    #     """Request the 100 last retweet ids, return them as a list"""
-    #     data = api.request('statuses/retweeters/ids', { 'id': str(tweet_id)})
-    #     response = {}
-    #     response['response'] = data.json()['ids']
-    #     retweeters = response['response']
-    #     """change user_ids from num to string"""
-    #     for index, num in enumerate(retweeters):
-    #         retweeters[index] = str(num)
-    #     return response
+    def get_retweeters(self, tweet_id):
+        """Request the 100 last retweet ids, return them as a list"""
+        route = 'statuses/retweeters/ids'
+        params = { 'id': str(tweet_id)}
+        data = self.__request_twitter(route, params)
+        response = {}
+        response['response'] = data['ids']
+        retweeters = response['response']
+        """change user_ids from num to string"""
+        for index, num in enumerate(retweeters):
+            retweeters[index] = str(num)
+        return response
 
-    # def get_tweet_data( tweet_id):
-    #     """Request full tweet information, including retweet and user information"""
-    #     url = "statuses/retweets/:%s" % tweet_id
-    #     data = api.request(url, {'count': 100}).json()
-    #     print( tweet_id)
-    #     print( url)
-    #     print("%s" % len(data))
-    #     results = {}
-    #     if len(data) == 0:
-    #         results['response'] = []
-    #     else:
-    #         results['response'] = __format_tweet_data(data)
-    #     return results
+    def get_tweet_data(self, tweet_id):
+        """Request full tweet information, including retweet and user information"""
+        route = "statuses/retweets"
+        route_extension = '/:%s' % tweet_id
+        params = {'count': 100}
+        data = self.__request_twitter(route, params, route_extension)
+        results = {}
+        if len(data) == 0:
+            results['response'] = []
+        else:
+            results['response'] = self.__format_tweet_data(data)
+        return results
 
-    # def get_user_timeline( user_id):
-    #     """Get the latest tweets of a user.
-    #     Returns up to 200 retweets in 4 categories."""
-
-    #     tweets = __request_user_timeline( user_id)
-    #     return tweets
+    def get_user_timeline(self, user_id):
+        """Get the latest tweets of a user.
+        Returns up to 200 retweets in 4 categories."""
+        params = {
+            'user_id': str(user_id), 
+            'exclude_replies': False,
+            'count': 200
+        }
+        route = "statuses/user_timeline"
+        data = self.__request_twitter(route, params)
+        return data
 
     @staticmethod
     def __parse_properties( data, keys):
