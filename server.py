@@ -8,6 +8,7 @@ import api.twitter.tweet as tweet
 import api.neo4j.neo4jApi as neo4jApi
 import api.newsletter.newsletterApi as newsletterApi
 import api.auth.betaAuth as betaAuth
+import api.logging.logger as logger
 
 app = Flask(__name__)
 apm = ElasticAPM(app, logging=True)
@@ -226,6 +227,27 @@ def auth_request_reset_password():
     else:
         return Response("Bad Request", status=400)
     
+@app.route('/logging/write_log', methods = ['POST'])
+def logging_write_log():
+    required_parameters = (
+        "email",
+        "session_token",
+        "file_name",
+        "log_object")
+    body = request.get_json()
+    if body and all (key in body for key in required_parameters):
+        email = body["email"]
+        session_token = body["session_token"]
+        if __is_session_valid(email, session_token):
+            log_object = body["log_object"]
+            file_name = body["file_name"]
+            log_object['email'] = email
+            return jsonify(logger.save_log(log_object, file_name))
+        else:
+            return Response("Forbidden", status=403)
+    else:
+        return Response("Bad Request", status=400)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
