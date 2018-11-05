@@ -3,12 +3,13 @@ from flask_cors import CORS
 
 from elasticapm.contrib.flask import ElasticAPM
 
-import api.twitter.twitterApi as twitterApi
-import api.twitter.tweet as tweet
 import api.neo4j.neo4jApi as neo4jApi
 import api.newsletter.newsletterApi as newsletterApi
 import api.auth.betaAuth as betaAuth
 import api.logging.logger as logger
+
+from api.twitter.twitterApi import TracemapTwitterApi
+twitterApi = TracemapTwitterApi()
 
 app = Flask(__name__)
 apm = ElasticAPM(app, logging=True)
