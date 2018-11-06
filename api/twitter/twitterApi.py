@@ -7,7 +7,7 @@ from api.twitter.tokenProvider import Token
 
 class TracemapTwitterApi:
 
-    def __request_twitter(self, route: str, params: dict, route_extension="") -> dict:
+    def __request_twitter(self, route: str, params: dict, route_extension: str="") -> dict:
         if not hasattr(self, route):
             token_instance = Token(route)
             setattr(self, route, token_instance)
@@ -20,14 +20,11 @@ class TracemapTwitterApi:
                 time.sleep(10)
                 continue
             parsed_response = response.json()
-            if parsed_response == []:
-                return parsed_response
             error_response = self.__check_error(api, parsed_response)
             if error_response:
                 if error_response == 'continue':
                     continue
                 else:
-                    print('###Error from Twitter:%s\n###Route requested:%s\n###Params:%s' % (error_response, route, params))
                     return {}
             else:
                 return parsed_response
@@ -46,10 +43,8 @@ class TracemapTwitterApi:
             if error_response == "Switch helper":
                 api.__get_user_auth()
                 return "continue"
-            elif error_response == "Invalid user":
-                return "invalid user"
-            elif error_response == "Not authorized":
-                return "invalid user"
+            elif error_response in ("Invalid user", "Not authorized"):
+                    return "invalid user"
             else:
                 return error_response
 
@@ -67,8 +62,7 @@ class TracemapTwitterApi:
 
     def get_user_info(self, uid_list: list) -> dict:
         """Request user information, return a dictionary"""
-        results = {}
-        results['response'] = {}
+        results = {'response': {}}
         route = "users/show"
         for id in uid_list:
             params = {'user_id': id}
@@ -114,7 +108,7 @@ class TracemapTwitterApi:
 
     def get_user_timeline(self, user_id: str) -> dict:
         """Get the latest tweets of a user.
-        Returns up to 200 retweets in 4 categories."""
+        Returns last 200 retweets."""
         params = {
             'user_id': str(user_id), 
             'exclude_replies': False,
@@ -128,7 +122,8 @@ class TracemapTwitterApi:
     def __parse_properties( data, keys: list) -> dict:
         response = {}
         for key in keys:
-            response[key] = data[key]
+            if key in data:
+                response[key] = data[key]
         return response
 
     @staticmethod

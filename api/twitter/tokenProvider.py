@@ -28,7 +28,7 @@ class Token:
                 )
                 return driver
             except Exception as exc:
-                print("0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
+                print("ERROR on neo4j driver initialization -> %s" % exc)
                 time.sleep(5)
                 continue
 
@@ -52,16 +52,14 @@ class Token:
             query += "WITH h LIMIT 1 "
             query += "SET h.`%s`=%s " % (self.twitter_route, distant_time)
             query += "RETURN h.token as token, "
-            query += "h.secret as secret, "
-            query += "h.user as user"
+            query += "h.secret as secret"
             with self.neo4j_driver.session() as db:
                 results = db.run(query)
-                for user in results:
-                    user_token = user["token"]
-                    user_secret = user["secret"]
+                    user_token = results[0]["token"]
+                    user_secret = results[0]["secret"]
             if not user_token:
-                time.sleep(10)
                 print('All tokens are busy.... waiting.')
+                time.sleep(10)
                 continue
             else:
                 break
