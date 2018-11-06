@@ -56,8 +56,8 @@ class Token:
             query += "h.secret as secret"
             with self.neo4j_driver.session() as db:
                 results = db.run(query)
-                    user_token = results[0]["token"]
-                    user_secret = results[0]["secret"]
+                user_token = results[0]["token"]
+                user_secret = results[0]["secret"]
             if not user_token:
                 print('All tokens are busy.... waiting.')
                 time.sleep(10)
