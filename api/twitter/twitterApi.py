@@ -94,7 +94,7 @@ class TracemapTwitterApi:
         response = {}
         response['response'] = data['ids']
         retweeters = response['response']
-        """change user_ids from num to string"""
+        # change user_ids from num to string
         for index, num in enumerate(retweeters):
             retweeters[index] = str(num)
         return response
