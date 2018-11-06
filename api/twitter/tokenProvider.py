@@ -5,6 +5,7 @@ import os
 import time
 import math
 
+
 class Token:
 
     RATE_LIMIT = "application/rate_limit_status"
@@ -101,8 +102,8 @@ class Token:
                 else:
                     print("Unknown error in __update_reset_time() function")
             else:
-                print("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
-
+                print(
+                    "Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __cleanup_last_session(self):
         """
@@ -123,7 +124,8 @@ class Token:
                 except Exception as exc:
                     e_name = type(exc).__name__
                     if e_name == "TransientError":
-                        print("8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
+                        print(
+                            "8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
                         print(str(exc))
                         time.sleep(2)
                         continue
