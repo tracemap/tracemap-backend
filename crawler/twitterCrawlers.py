@@ -55,15 +55,16 @@ class Crawler:
             self.crawl(user_id)
 
     def crawl(self, user_id):
-        prio = False
+        self.is_big_user = False
+        self.is_prio_user = False
         if "prio_" in user_id:
             user_id = user_id[5:]
-            prio = True
+            self.is_prio_user = True
         valid_int = self.__is_user_valid(user_id)
         if valid_int == 1:
             self.__log_to_file("CRAWLING: %s" % user_id)
             if self.__get_followers(user_id):
-                self.__finish_update(user_id, prio)
+                self.__finish_update(user_id)
         elif valid_int == 0:
             self.__delete_user(user_id)
 
@@ -123,6 +124,8 @@ class Crawler:
                     else:
                         self.__log_to_file("6 - UNKNOWN ERROR -> %s (while trying to get followers from user %s). "
                                            "parsed_response = %s" % (error_response, user_id, parsed_response))
+            if num_followers > 100000:
+                self.__label_as_big(user_id)
             if 'next_cursor' in parsed_response:
                 cursor = parsed_response["next_cursor"]
             else:
@@ -130,6 +133,11 @@ class Crawler:
         self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" % (user_id, num_followers))
         return True
 
+    def __label_as_big(self, user_id: str):
+        query = "MATCH (u:USER{uid:'%s'}) " % user_id
+        query += "SET u:BIG"
+        self.__run_query(query)
+        self.is_big_user = True
 
     def __save_user_followers(self, user_id, followers):
         # Add a batch of followers to the db
@@ -143,9 +151,11 @@ class Crawler:
             temp_file.write(line+'\n')
         self.__log_to_file("Batch of followers of user %s saved to file." % user_id)
 
-    def __finish_update(self, user_id, prio):
+    def __finish_update(self, user_id):
         # Some verbosity about the kind of db write
-        if prio:
+        if self.is_big_user == True:
+            os.rename("temp/temp_%s.txt" % user_id, "temp/big_%s_save.txt" % user_id)
+        elif self.is_prio_user == True:
             os.rename("temp/temp_%s.txt" % user_id, "temp/prio_%s_save.txt" % user_id)
         else:    
             os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
