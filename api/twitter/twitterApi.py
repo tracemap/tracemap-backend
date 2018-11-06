@@ -7,7 +7,7 @@ from api.twitter.tokenProvider import Token
 
 class TracemapTwitterApi:
 
-    def __request_twitter(self, route: str, params: dict, route_extension=""):
+    def __request_twitter(self, route: str, params: dict, route_extension="") -> dict:
         if not hasattr(self, route):
             token_instance = Token(route)
             setattr(self, route, token_instance)
@@ -32,7 +32,7 @@ class TracemapTwitterApi:
             else:
                 return parsed_response
 
-    def __check_error(self, api, response):
+    def __check_error(self, api, response: dict) -> str:
         error_response = ""
         if 'error' in response:
             error_response = self.__check_twitter_error_code(
@@ -41,7 +41,7 @@ class TracemapTwitterApi:
             error_response = self.__check_twitter_error_code(
                 response["errors"][0]["code"])
         if error_response == "":
-            return False
+            return ""
         else:
             if error_response == "Switch helper":
                 api.__get_user_auth()
@@ -54,7 +54,7 @@ class TracemapTwitterApi:
                 return error_response
 
     @staticmethod
-    def __check_twitter_error_code(code):
+    def __check_twitter_error_code(code: int) -> str:
         return {
             32: "Switch helper",
             50: "Invalid user",
@@ -65,7 +65,7 @@ class TracemapTwitterApi:
             131: "Internal error"
         }.get(code, "Unknown error %s" % code)
 
-    def get_user_info(self, uid_list):
+    def get_user_info(self, uid_list: list) -> dict:
         """Request user information, return a dictionary"""
         results = {}
         results['response'] = {}
@@ -76,7 +76,7 @@ class TracemapTwitterApi:
             results['response'][ str(id)] = self.__format_user_info( data)
         return results
 
-    def get_tweet_info(self, tweet_id):
+    def get_tweet_info(self, tweet_id: str) -> dict:
         """Request tweet information, return a dictionary"""
         route = "statuses/lookup"
         params = {'id': tweet_id}
@@ -86,7 +86,7 @@ class TracemapTwitterApi:
         else:
             return data
 
-    def get_retweeters(self, tweet_id):
+    def get_retweeters(self, tweet_id: str) -> dict:
         """Request the 100 last retweet ids, return them as a list"""
         route = 'statuses/retweeters/ids'
         params = { 'id': str(tweet_id)}
@@ -99,7 +99,7 @@ class TracemapTwitterApi:
             retweeters[index] = str(num)
         return response
 
-    def get_tweet_data(self, tweet_id):
+    def get_tweet_data(self, tweet_id: str) -> dict:
         """Request full tweet information, including retweet and user information"""
         route = "statuses/retweets"
         route_extension = '/:%s' % tweet_id
@@ -112,7 +112,7 @@ class TracemapTwitterApi:
             results['response'] = self.__format_tweet_data(data)
         return results
 
-    def get_user_timeline(self, user_id):
+    def get_user_timeline(self, user_id: str) -> dict:
         """Get the latest tweets of a user.
         Returns up to 200 retweets in 4 categories."""
         params = {
@@ -125,14 +125,14 @@ class TracemapTwitterApi:
         return data
 
     @staticmethod
-    def __parse_properties( data, keys):
+    def __parse_properties( data, keys: list) -> dict:
         response = {}
         for key in keys:
             response[key] = data[key]
         return response
 
     @staticmethod
-    def __format_user_info( data):
+    def __format_user_info( data: dict) -> dict:
         """Format get_user_info data as a dictionary of relevant data"""
         user_dict = {}
         user_dict[ "timestamp"] = str(time.time())
@@ -148,7 +148,7 @@ class TracemapTwitterApi:
         return( user_dict)
 
     @staticmethod
-    def __format_tweet_info( data):
+    def __format_tweet_info( data: dict) -> dict:
         data = data[0]
         response = {}
         response['response'] = {}
@@ -165,7 +165,7 @@ class TracemapTwitterApi:
         tweet_dict["user_mentions"] = data['entities']['user_mentions']
         return( response)
 
-    def __format_tweet_data(self, data):
+    def __format_tweet_data(self, data: dict) -> dict:
         response = {}
         response['retweeter_ids'] = []
         response['retweet_info'] = {}

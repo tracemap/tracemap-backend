@@ -9,7 +9,7 @@ class Token:
 
     RATE_LIMIT = "application/rate_limit_status"
 
-    def __init__(self, twitter_route):
+    def __init__(self, twitter_route: str):
         self.twitter_route = twitter_route
         self.neo4j_driver = self.__connect_to_db()
         self.app_token = os.environ.get('APP_TOKEN')
@@ -37,7 +37,7 @@ class Token:
         Return old token by updating the reset time
         and get a free token.
         """
-        if hasattr(self, 'twitter_api'):
+        if hasattr(self, 'api'):
             self.__update_reset_time()
         # get new credentials from the db and block them
         # for 1000min by setting the timestamp
@@ -115,7 +115,7 @@ class Token:
         query += "REMOVE h.`%s`" % self.twitter_route
         self.__run_query(query)
 
-    def __run_query(self, query):
+    def __run_query(self, query: str):
         print("running query: %s" % query)
         with self.neo4j_driver.session() as db:
             while True:
