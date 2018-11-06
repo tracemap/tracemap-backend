@@ -83,6 +83,10 @@ def get_next_crawler_users(user_list, priority=1):
 
     __log_to_file("Round of PRIORITY%s users, %s users so far in the batch." % (priority, len(user_list)))
 
+    #
+    # CRAWLING OF USERS NOT REQUESTED FROM THE FRONTEND (PRIORITY2 & 3)
+    # IS DISABLED UNTIL WE HAVE ENOUGH USER TOKEN
+    #
     # if len(user_list) == queue_size or priority == 3:
     #     return user_list
     # else:
