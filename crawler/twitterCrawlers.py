@@ -37,7 +37,8 @@ class Crawler:
                 self.__log_to_file(self.name + " connected to the database.")
                 return driver
             except Exception as exc:
-                self.__log_to_file("0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
+                self.__log_to_file(
+                    "0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
                 time.sleep(5)
                 continue
 
@@ -71,10 +72,12 @@ class Crawler:
     def __is_user_valid(self, user_id):
         while True:
             try:
-                response = self.api.request(self.USERS_SHOW, {"user_id": user_id})
+                response = self.api.request(
+                    self.USERS_SHOW, {"user_id": user_id})
                 break
             except Exception as exc:
-                self.__log_to_file("1 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
+                self.__log_to_file(
+                    "1 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                 time.sleep(10)
                 continue
         parsed_response = json.loads(response.text)
@@ -106,7 +109,8 @@ class Crawler:
                     })
                     break
                 except Exception as exc:
-                    self.__log_to_file("3 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
+                    self.__log_to_file(
+                        "3 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                     time.sleep(10)
                     continue
             parsed_response = json.loads(response.text)
@@ -130,7 +134,8 @@ class Crawler:
                 cursor = parsed_response["next_cursor"]
             else:
                 cursor = 0
-        self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" % (user_id, num_followers))
+        self.__log_to_file("User %s crawling complete. File ready to br processed by writer: num_followers: %s\n\n\n" % (
+            user_id, num_followers))
         return True
 
     def __label_as_big(self, user_id: str):
@@ -149,16 +154,20 @@ class Crawler:
             line = line[:-1]
         with open("temp/temp_%s.txt" % user_id, "a") as temp_file:
             temp_file.write(line+'\n')
-        self.__log_to_file("Batch of followers of user %s saved to file." % user_id)
+        self.__log_to_file(
+            "Batch of followers of user %s saved to file." % user_id)
 
     def __finish_update(self, user_id):
         # Some verbosity about the kind of db write
         if self.is_big_user == True:
-            os.rename("temp/temp_%s.txt" % user_id, "temp/big_%s_save.txt" % user_id)
+            os.rename("temp/temp_%s.txt" %
+                      user_id, "temp/big_%s_save.txt" % user_id)
         elif self.is_prio_user == True:
-            os.rename("temp/temp_%s.txt" % user_id, "temp/prio_%s_save.txt" % user_id)
-        else:    
-            os.rename("temp/temp_%s.txt" % user_id, "temp/%s_save.txt" % user_id)
+            os.rename("temp/temp_%s.txt" %
+                      user_id, "temp/prio_%s_save.txt" % user_id)
+        else:
+            os.rename("temp/temp_%s.txt" %
+                      user_id, "temp/%s_save.txt" % user_id)
 
     def __delete_user(self, user_id):
         # delete invalid user and connections
@@ -185,7 +194,8 @@ class Crawler:
             elif error_response == "Not authorized":
                 return "invalid user"
             else:
-                self.__log_to_file("7 - Unusual error response: %s" % error_response)
+                self.__log_to_file(
+                    "7 - Unusual error response: %s" % error_response)
                 return error_response
 
     def __run_query(self, query):
@@ -197,7 +207,8 @@ class Crawler:
                 except Exception as exc:
                     e_name = type(exc).__name__
                     if e_name == "TransientError":
-                        self.__log_to_file("8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
+                        self.__log_to_file(
+                            "8 - ERROR -> %s. DB data is locked. Retrying..." % e_name)
                         self.__log_to_file(str(exc))
                         time.sleep(2)
                         continue
@@ -257,7 +268,8 @@ class Crawler:
             self.app_secret,
             user_token,
             user_secret)
-        self.__log_to_file("##### Saving followers failed, new token acquired. Using token from %s" % user_name)
+        self.__log_to_file(
+            "##### Saving followers failed, new token acquired. Using token from %s" % user_name)
 
     def __update_reset_time(self):
         # update token's timestamp to real reset time
@@ -268,7 +280,8 @@ class Crawler:
                 })
                 break
             except Exception as exc:
-                self.__log_to_file("13 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
+                self.__log_to_file(
+                    "13 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                 time.sleep(10)
                 continue
         parsed_response = json.loads(response.text)
@@ -279,7 +292,8 @@ class Crawler:
             query += "SET h.timestamp=%s" % reset_time
             self.__run_query(query)
         except Exception as exc:
-            self.__log_to_file("14 - ERROR -> %s. Failed to reset the token's timestamp." % exc)
+            self.__log_to_file(
+                "14 - ERROR -> %s. Failed to reset the token's timestamp." % exc)
             if 'errors' in parsed_response:
                 e_code = parsed_response['errors'][0]['code']
                 if e_code == 89:
@@ -288,9 +302,11 @@ class Crawler:
                     self.__run_query(query)
                     self.__log_to_file("Error corrected, token deleted!")
                 else:
-                    self.__log_to_file("Unknown error in __update_reset_time() function")
+                    self.__log_to_file(
+                        "Unknown error in __update_reset_time() function")
             else:
-                self.__log_to_file("Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
+                self.__log_to_file(
+                    "Unknown error in _update_reset_time(). parsed_response = %s" % parsed_response)
 
     def __log_to_file(self, message):
         # print(message)
