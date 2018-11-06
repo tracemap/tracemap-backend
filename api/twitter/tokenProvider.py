@@ -61,7 +61,7 @@ class Token:
                     user_secret = user["secret"]
             if not user_token:
                 time.sleep(10)
-                print('All token are busy.... waiting.')
+                print('All tokens are busy.... waiting.')
                 continue
             else:
                 break
