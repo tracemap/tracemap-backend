@@ -15,7 +15,8 @@ app = Flask(__name__)
 apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-def __is_session_valid(email: str, session_token: str):
+def __is_session_valid(email: str, session_token: str) -> bool:
+
     if email and session_token:
         response = betaAuth.check_session(email, session_token)
         return response.get('session', False)
