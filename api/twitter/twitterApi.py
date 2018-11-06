@@ -7,7 +7,7 @@ from api.twitter.tokenProvider import Token
 
 class TracemapTwitterApi:
 
-    def __request_twitter(self, route: str, params: dict, route_extension=""):
+    def __request_twitter(self, route: str, params: dict, route_extension: str="") -> dict:
         if not hasattr(self, route):
             token_instance = Token(route)
             setattr(self, route, token_instance)
@@ -20,19 +20,16 @@ class TracemapTwitterApi:
                 time.sleep(10)
                 continue
             parsed_response = response.json()
-            if parsed_response == []:
-                return parsed_response
             error_response = self.__check_error(api, parsed_response)
             if error_response:
                 if error_response == 'continue':
                     continue
                 else:
-                    print('###Error from Twitter:%s\n###Route requested:%s\n###Params:%s' % (error_response, route, params))
                     return {}
             else:
                 return parsed_response
 
-    def __check_error(self, api, response):
+    def __check_error(self, api, response: dict) -> str:
         error_response = ""
         if 'error' in response:
             error_response = self.__check_twitter_error_code(
@@ -41,20 +38,18 @@ class TracemapTwitterApi:
             error_response = self.__check_twitter_error_code(
                 response["errors"][0]["code"])
         if error_response == "":
-            return False
+            return ""
         else:
             if error_response == "Switch helper":
                 api.__get_user_auth()
                 return "continue"
-            elif error_response == "Invalid user":
-                return "invalid user"
-            elif error_response == "Not authorized":
-                return "invalid user"
+            elif error_response in ("Invalid user", "Not authorized"):
+                    return "invalid user"
             else:
                 return error_response
 
     @staticmethod
-    def __check_twitter_error_code(code):
+    def __check_twitter_error_code(code: int) -> str:
         return {
             32: "Switch helper",
             50: "Invalid user",
@@ -65,10 +60,9 @@ class TracemapTwitterApi:
             131: "Internal error"
         }.get(code, "Unknown error %s" % code)
 
-    def get_user_info(self, uid_list):
+    def get_user_info(self, uid_list: list) -> dict:
         """Request user information, return a dictionary"""
-        results = {}
-        results['response'] = {}
+        results = {'response': {}}
         route = "users/show"
         for id in uid_list:
             params = {'user_id': id}
@@ -76,7 +70,7 @@ class TracemapTwitterApi:
             results['response'][ str(id)] = self.__format_user_info( data)
         return results
 
-    def get_tweet_info(self, tweet_id):
+    def get_tweet_info(self, tweet_id: str) -> dict:
         """Request tweet information, return a dictionary"""
         route = "statuses/lookup"
         params = {'id': tweet_id}
@@ -86,7 +80,7 @@ class TracemapTwitterApi:
         else:
             return data
 
-    def get_retweeters(self, tweet_id):
+    def get_retweeters(self, tweet_id: str) -> dict:
         """Request the 100 last retweet ids, return them as a list"""
         route = 'statuses/retweeters/ids'
         params = { 'id': str(tweet_id)}
@@ -94,12 +88,12 @@ class TracemapTwitterApi:
         response = {}
         response['response'] = data['ids']
         retweeters = response['response']
-        """change user_ids from num to string"""
+        # change user_ids from num to string
         for index, num in enumerate(retweeters):
             retweeters[index] = str(num)
         return response
 
-    def get_tweet_data(self, tweet_id):
+    def get_tweet_data(self, tweet_id: str) -> dict:
         """Request full tweet information, including retweet and user information"""
         route = "statuses/retweets"
         route_extension = '/:%s' % tweet_id
@@ -112,9 +106,9 @@ class TracemapTwitterApi:
             results['response'] = self.__format_tweet_data(data)
         return results
 
-    def get_user_timeline(self, user_id):
+    def get_user_timeline(self, user_id: str) -> dict:
         """Get the latest tweets of a user.
-        Returns up to 200 retweets in 4 categories."""
+        Returns last 200 retweets."""
         params = {
             'user_id': str(user_id), 
             'exclude_replies': False,
@@ -125,14 +119,15 @@ class TracemapTwitterApi:
         return data
 
     @staticmethod
-    def __parse_properties( data, keys):
+    def __parse_properties( data, keys: list) -> dict:
         response = {}
         for key in keys:
-            response[key] = data[key]
+            if key in data:
+                response[key] = data[key]
         return response
 
     @staticmethod
-    def __format_user_info( data):
+    def __format_user_info( data: dict) -> dict:
         """Format get_user_info data as a dictionary of relevant data"""
         user_dict = {}
         user_dict[ "timestamp"] = str(time.time())
@@ -148,7 +143,7 @@ class TracemapTwitterApi:
         return( user_dict)
 
     @staticmethod
-    def __format_tweet_info( data):
+    def __format_tweet_info( data: dict) -> dict:
         data = data[0]
         response = {}
         response['response'] = {}
@@ -160,12 +155,12 @@ class TracemapTwitterApi:
         tweet_dict["fav_count"] = str( data['favorite_count'])
         tweet_dict["retweet_count"] = str( data['retweet_count'])
         tweet_dict["date"] = str( data['created_at'])
-        """The following values are lists"""
+     # The following values are lists
         tweet_dict["hashtags"] = data['entities']['hashtags']
         tweet_dict["user_mentions"] = data['entities']['user_mentions']
         return( response)
 
-    def __format_tweet_data(self, data):
+    def __format_tweet_data(self, data: dict) -> dict:
         response = {}
         response['retweeter_ids'] = []
         response['retweet_info'] = {}

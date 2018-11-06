@@ -9,7 +9,7 @@ class Token:
 
     RATE_LIMIT = "application/rate_limit_status"
 
-    def __init__(self, twitter_route):
+    def __init__(self, twitter_route: str):
         self.twitter_route = twitter_route
         self.neo4j_driver = self.__connect_to_db()
         self.app_token = os.environ.get('APP_TOKEN')
@@ -28,7 +28,7 @@ class Token:
                 )
                 return driver
             except Exception as exc:
-                print("0 - ERROR -> %s. Crawler could not connect to the database. Retrying in 5s..." % exc)
+                print("ERROR on neo4j driver initialization -> %s" % exc)
                 time.sleep(5)
                 continue
 
@@ -37,7 +37,7 @@ class Token:
         Return old token by updating the reset time
         and get a free token.
         """
-        if hasattr(self, 'twitter_api'):
+        if hasattr(self, 'api'):
             self.__update_reset_time()
         # get new credentials from the db and block them
         # for 1000min by setting the timestamp
@@ -52,16 +52,14 @@ class Token:
             query += "WITH h LIMIT 1 "
             query += "SET h.`%s`=%s " % (self.twitter_route, distant_time)
             query += "RETURN h.token as token, "
-            query += "h.secret as secret, "
-            query += "h.user as user"
+            query += "h.secret as secret"
             with self.neo4j_driver.session() as db:
                 results = db.run(query)
-                for user in results:
-                    user_token = user["token"]
-                    user_secret = user["secret"]
+                    user_token = results[0]["token"]
+                    user_secret = results[0]["secret"]
             if not user_token:
+                print('All tokens are busy.... waiting.')
                 time.sleep(10)
-                print('All token are busy.... waiting.')
                 continue
             else:
                 break
@@ -115,7 +113,7 @@ class Token:
         query += "REMOVE h.`%s`" % self.twitter_route
         self.__run_query(query)
 
-    def __run_query(self, query):
+    def __run_query(self, query: str):
         print("running query: %s" % query)
         with self.neo4j_driver.session() as db:
             while True:
