@@ -160,7 +160,7 @@ class TracemapTwitterApi:
         tweet_dict["fav_count"] = str( data['favorite_count'])
         tweet_dict["retweet_count"] = str( data['retweet_count'])
         tweet_dict["date"] = str( data['created_at'])
-        """The following values are lists"""
+     # The following values are lists
         tweet_dict["hashtags"] = data['entities']['hashtags']
         tweet_dict["user_mentions"] = data['entities']['user_mentions']
         return( response)
