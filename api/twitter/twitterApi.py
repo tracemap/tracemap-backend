@@ -1,11 +1,22 @@
 import json
 import time
 import os
+import re
+import nltk
+from nltk import word_tokenize
+from nltk.corpus import stopwords
+
 
 from TwitterAPI import TwitterAPI
 from api.twitter.tokenProvider import Token
 
 class TracemapTwitterApi:
+
+    def __init__(self):
+        try:
+            nltk.download('stopwords')
+        except FileExistsError:
+            print('stopwords already exist')
 
     def __request_twitter(self, route: str, params: dict, route_extension: str="") -> dict:
         if not hasattr(self, route):
@@ -112,11 +123,108 @@ class TracemapTwitterApi:
         params = {
             'user_id': str(user_id), 
             'exclude_replies': False,
-            'count': 200
+            'count': 200,
+            'tweet_mode':'extended'
         }
         route = "statuses/user_timeline"
         data = self.__request_twitter(route, params)
-        return data
+        if data:
+            response = {
+                'tweets': [],
+                'retweets': []
+            }
+        else:
+            return {}
+        for tweet in data:
+            tm_tweet = {
+                'id_str': "",
+                'retweet_count': 0
+            }
+            word_dict = {}
+            handle_dict = {}
+            hashtag_dict = {}
+            wordcloud = {
+                'hashtags': [],
+                'handles': [],
+                'words': []
+            }
+            word_list = self.__get_word_list(tweet)
+            for word in word_list:
+                word = word.lower()
+                if word in word_dict:
+                    word_dict[word] += 1
+                else:
+                    word_dict[word] = 1
+            for hashtag_obj in tweet['entities']['hashtags']:
+                hashtag = '#%s' % hashtag_obj['text'].lower()
+                if hashtag in hashtag_dict:
+                    hashtag_dict[hashtag] += 1
+                else:
+                    hashtag_dict[hashtag] = 1
+            for handle_obj in tweet['entities']['user_mentions']:
+                handle = '@%s' % handle_obj['screen_name']
+                if handle in handle_dict:
+                    handle_dict[handle] += 1
+                else:
+                    hashtag_dict[handle] = 1
+            wordcloud['words'] = word_dict
+            wordcloud['hashtags'] = hashtag_dict
+            wordcloud['handles'] = handle_dict
+            tm_tweet['wordcloud'] = wordcloud
+            if 'retweeted_status' in tweet and not tweet['retweeted_status']['user']['id_str'] == user_id:
+                tm_tweet['id_str'] = tweet['retweeted_status']['id_str']
+                tm_tweet['retweet_count'] = tweet['retweeted_status']['retweet_count']
+                response['retweets'].append(tm_tweet)
+            if 'retweeted_status' not in tweet:
+                tm_tweet['id_str'] = tweet['id_str']
+                tm_tweet['retweet_count'] = tweet['retweet_count']
+                response['tweets'].append(tm_tweet)
+        return response
+
+
+    def __get_word_list(self, tweet: dict) -> list:
+        # replace any amount of whitespace/newline with a single space and split at space
+        word_list = (re.sub(r'\s+', ' ', tweet['full_text'])).split(' ')
+        # remove all nonword characters at eow
+        word_list = [re.sub(r'\W+\B', '', word) for word in word_list]
+        # filter all links, hashtags, handles
+        word_list = [word for word in word_list if not any(seq in word for seq in ['www', 'http', 'https', '#', '@'])]
+        # remove all words with nonword characters
+        word_list = [re.sub(r'\W+', '', word) for word in word_list]
+        # filter words smaller than 3 chars
+        word_list = [word for word in word_list if len(word) > 2]
+        word_list = self.__filter_stopwords(word_list, tweet['lang'])
+        return word_list
+
+    def __filter_stopwords(self, word_list: list, lang_short: str) -> list:
+        language = self.__get_language(lang_short)
+        stop = set(stopwords.words(language))
+        return [word for word in word_list if word not in stop]
+
+    @staticmethod
+    def __get_language(lang_short: str) -> str:
+        # maps the short bcp 47 language tag to
+        # the nltk stopword lists language
+        return {
+            'ar': 'arabic',
+            'da': 'danish',
+            'nl': 'dutch',
+            'en': 'english',
+            'fi': 'finnish',
+            'fr': 'french',
+            'de': 'german',
+            'el': 'greek',
+            'it': 'italian',
+            'nn': 'norwegian',
+            'pt': 'portuguese',
+            'br': 'portuguese',
+            'ro': 'romanian',
+            'ru': 'russioan',
+            'es': 'spanish',
+            'sv': 'swedish',
+            'tr': 'turkish'
+        }.get(lang_short, "english")
+        
 
     @staticmethod
     def __parse_properties( data, keys: list) -> dict:
