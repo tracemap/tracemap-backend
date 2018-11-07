@@ -43,15 +43,7 @@ class Crawler:
                 continue
 
     def run(self):
-        empty_state = True if self.q.empty() else False
         while True:
-            if self.q.empty():
-                if not empty_state:
-                    self.__log_to_file("Queue empty. Waiting...\n\n\n")
-                    empty_state = True
-                time.sleep(10)
-                continue
-            empty_state = False
             user_id = self.q.get()
             self.crawl(user_id)
 
