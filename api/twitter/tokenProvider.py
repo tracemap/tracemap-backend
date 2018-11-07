@@ -55,7 +55,7 @@ class Token:
             query += "RETURN h.token as token, "
             query += "h.secret as secret"
             with self.neo4j_driver.session() as db:
-                results = db.run(query)
+                results = db.run(query).data()
                 user_token = results[0]["token"]
                 user_secret = results[0]["secret"]
             if not user_token:

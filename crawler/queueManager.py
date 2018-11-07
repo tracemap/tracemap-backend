@@ -112,7 +112,7 @@ def get_next_writer_users():
         nonprio_users = [uf for uf in user_files if uf[0].isdigit() and uf not in last_write_q]
         nonprio_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
     # merge big and normal users and return first write_queue_size users
-    next_users = big_users + nonprio_user
+    next_users = big_users + nonprio_users
     return next_users[:write_queue_size]
 
 def get_next_prio_writer_users():
@@ -186,13 +186,13 @@ if __name__ == '__main__':
         __log_to_file("crawler%s started!" % i)
 
     for i in range(num_writers):
-        writer = multiprocessing.Process(target=Writer, args=(write_q, lock, "writer%s" % j))
+        writer = multiprocessing.Process(target=Writer, args=(write_q, lock, "writer%s" % i))
         writer.daemon = True
         writer.start()
         __log_to_file("writer%s started!" % i)
 
     for i in range(num_prio_writers):
-        prio_writer = multiprocessing.Process(target=Writer, args=(prio_write_q, lock, "prio_writer%s" % j))
+        prio_writer = multiprocessing.Process(target=Writer, args=(prio_write_q, lock, "prio_writer%s" % i))
         prio_writer.daemon = True
         prio_writer.start()
         __log_to_file("prio_writer%s started!" % i)
