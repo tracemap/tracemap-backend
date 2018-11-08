@@ -112,7 +112,8 @@ class TracemapTwitterApi:
         params = {
             'user_id': str(user_id), 
             'exclude_replies': False,
-            'count': 200
+            'count': 200,
+            'tweet_mode':'extended'
         }
         route = "statuses/user_timeline"
         data = self.__request_twitter(route, params)
