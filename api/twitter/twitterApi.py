@@ -178,6 +178,7 @@ class TracemapTwitterApi:
             if 'retweeted_status' not in tweet:
                 tm_tweet['id_str'] = tweet['id_str']
                 tm_tweet['retweet_count'] = tweet['retweet_count']
+                tm_tweet['full_text'] = tweet['full_text']
                 response['tweets'].append(tm_tweet)
         return response
 
@@ -219,7 +220,7 @@ class TracemapTwitterApi:
             'pt': 'portuguese',
             'br': 'portuguese',
             'ro': 'romanian',
-            'ru': 'russioan',
+            'ru': 'russian',
             'es': 'spanish',
             'sv': 'swedish',
             'tr': 'turkish'
