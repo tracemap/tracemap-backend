@@ -6,7 +6,7 @@ import math
 
 class Writer:
 
-    def __init__(self, write_q, name):
+    def __init__(self, write_q, lock, name):
         self.name = name
         self.__log_to_file(self.name + " is initialized.")
 
@@ -14,8 +14,7 @@ class Writer:
 
         self.write_q = write_q
 
-        # Eliminating the use of locks for now
-        # self.lock = lock;
+        self.lock = lock
 
         self.run()
 
@@ -37,40 +36,48 @@ class Writer:
 
     def run(self):
         empty_state = True if self.write_q.empty() else False
+        self.prio = False
+        self.locked = False
+        
         while True:
             if self.write_q.empty():
+                if self.prio == True and self.locked == True:
+                    self.locked = False
+                    self.lock.release()
                 if empty_state:
                     self.__log_to_file("Writing queue empty. Waiting...\n\n\n")
                     empty_state = True
                 time.sleep(10)
                 continue
             empty_state = False
+            if "prio" in self.name:
+                self.prio = True
+            if self.prio == True and self.locked == False:
+                self.locked = True
+                self.lock.acquire()
             file_name = self.write_q.get()
             self.db_write(file_name)
             os.remove("temp/" + file_name)
 
     def db_write(self, file_name):
-        user_id = file_name.split('_')[0]
+        user_id = file_name
+        if "big_" in file_name:
+            user_id = file_name[4:]
+        elif "prio_" in file_name:
+            user_id = file_name[5:] 
+        user_id = user_id.split('_')[0]
         if file_name[-8:-4] == 'save':
             self.__log_to_file("WRITING: %s" % user_id)
             self.__delete_old_relations(user_id)
-            self.__write_followers(user_id)
+            self.__write_followers(user_id, file_name)
         elif file_name[-10:-4] == 'delete':
             self.__delete_user(user_id)
 
-    def __request_followers(self, user_id, batch_number, batch_size):
-        query = "MATCH (u:USER:QUEUED{uid:'%s'})" % user_id
-        query += "<-[:FOLLOWS]-(f:USER) "
-        query += "RETURN f.uid AS followerid "
-        query += "SKIP %s " % (batch_number*batch_size)
-        query += "LIMIT %s" % batch_size
-        return [d['followerid'] for d in self.__run_get_query(query).data()]
-
-    def __write_followers(self, user_id):
+    def __write_followers(self, user_id, file_name):
         num_new_followers = 0
         batch_size = 50000
         self.__log_to_file("Writing new followers for user %s." % user_id)
-        with open("temp/%s_save.txt" % user_id, "r") as followers_file:
+        with open("temp/%s" % file_name, "r") as followers_file:
             batch = []
             for line in followers_file.readlines():
                 batch.extend(line.replace('\n', '').split(','))
@@ -130,7 +137,18 @@ class Writer:
         with self.driver.session() as db:
             while True:
                 try:
-                    db.run(query)
+                    if self.prio == False:
+                        # if non prio user, check and wait until prio lock
+                        # is not set and set lock for this batch
+                        while True:
+                            no_prio_lock = self.lock.acquire(False)
+                            if no_prio_lock == True:
+                                break
+                            time.sleep(1)
+                        db.run(query)
+                        self.lock.release()
+                    else:
+                        db.run(query)
                     break
                 except Exception as exc:
                     e_name = type(exc).__name__
@@ -151,7 +169,18 @@ class Writer:
         with self.driver.session() as db:
             while True:
                 try:
-                    result = db.run(query)
+                    if self.prio == False:
+                        # if non prio user, check and wait until prio lock
+                        # is not set and set lock for this batch
+                        while True:
+                            no_prio_lock = self.lock.acquire(False)
+                            if no_prio_lock == True:
+                                break
+                            time.sleep(1)
+                        result = db.run(query)
+                        self.lock.release()
+                    else:
+                        result = db.run(query)
                     break
                 except Exception as exc:
                     e_name = type(exc).__name__
@@ -176,6 +205,6 @@ class Writer:
 
     def __log_to_file(self, message):
         now = time.strftime("[%a, %d %b %Y %H:%M:%S] ", time.localtime())
-        print(now + message)
+        print("%s@%s: %s" % (now, self.name, message))
         with open("log/"+self.name+".log", 'a') as log_file:
             log_file.write(now + message + '\n')

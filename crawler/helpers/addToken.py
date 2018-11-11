@@ -8,8 +8,8 @@ while True:
             os.environ.get('NEO4J_URI'), auth=(
                 os.environ.get('NEO4J_USER'),
                 os.environ.get('NEO4J_PASSWORD')
-                )
             )
+        )
         break
     except:
         print("Database not up.. retrying")

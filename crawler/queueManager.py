@@ -83,12 +83,17 @@ def get_next_crawler_users(user_list, priority=1):
 
     __log_to_file("Round of PRIORITY%s users, %s users so far in the batch." % (priority, len(user_list)))
 
-    if len(user_list) == queue_size or priority == 3:
-        return user_list
-    else:
-        priority += 1
-        __log_to_file("Going to next priority, %s users remaining." % (queue_size - len(user_list)))
-        return get_next_crawler_users(user_list, priority)
+    #
+    # CRAWLING OF USERS NOT REQUESTED FROM THE FRONTEND (PRIORITY2 & 3)
+    # IS DISABLED UNTIL WE HAVE ENOUGH USER TOKEN
+    #
+    # if len(user_list) == queue_size or priority == 3:
+    #     return user_list
+    # else:
+    #     priority += 1
+    #     __log_to_file("Going to next priority, %s users remaining." % (queue_size - len(user_list)))
+    #     return get_next_crawler_users(user_list, priority)
+    return user_list
 
 def get_next_writer_users():
     '''
@@ -97,20 +102,30 @@ def get_next_writer_users():
     prefix.
     '''
     user_files = os.listdir("temp")
-    # get prio users 
-    prio_users = [uf for uf in user_files if "prio_" in uf and uf not in last_write_q]
-    prio_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
-    prio_users = prio_users[:write_queue_size]
-    # get not_prio users if not enough prio users
+    # get big users 
+    big_users = [uf for uf in user_files if "big_" in uf and uf not in last_write_q]
+    big_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
+    big_users = big_users[:write_queue_size]
+    # get normal users
     nonprio_users = []
-    if len(prio_users) < write_queue_size:
+    if len(big_users) < write_queue_size:
         nonprio_users = [uf for uf in user_files if uf[0].isdigit() and uf not in last_write_q]
         nonprio_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
-    # delete prefix from prio_users
-    [os.rename("temp/%s" % user, "temp/%s" % user[5:]) for user in prio_users]
-    prio_users = [user[5:] for user in prio_users]
-    next_users = prio_users + nonprio_users
+    # merge big and normal users and return first write_queue_size users
+    next_users = big_users + nonprio_users
     return next_users[:write_queue_size]
+
+def get_next_prio_writer_users():
+    '''
+    searches temp folder for prio_ user files and returns
+    the oldest of them.
+    '''
+    user_files = os.listdir("temp")
+    # get prio users 
+    prio_users = [uf for uf in user_files if "prio_" in uf and uf not in last_prio_write_q]
+    prio_users.sort(key = lambda x: os.path.getmtime("temp/" + x))
+    prio_users = prio_users[:prio_write_queue_size]
+    return prio_users
     
 
 
@@ -146,15 +161,21 @@ if __name__ == '__main__':
 
     queue_size = 200
     write_queue_size = 200
+    prio_write_queue_size = 200
     num_crawlers = 20
     num_writers = 1
+    num_prio_writers = 1
+
     last_q = []
     last_write_q = []
+    last_prio_write_q = []
 
     driver = __connect_to_db()
 
+    lock = multiprocessing.Lock()
     q = multiprocessing.Queue(queue_size)
     write_q = multiprocessing.Queue(write_queue_size)
+    prio_write_q = multiprocessing.Queue(prio_write_queue_size)
 
     __log_to_file("Queues initialized!")
 
@@ -162,13 +183,19 @@ if __name__ == '__main__':
         crawler = multiprocessing.Process(target=Crawler, args=(q, "crawler%s" % i))
         crawler.daemon = True
         crawler.start()
-        __log_to_file("crawler%s" % i + " started!")
+        __log_to_file("crawler%s started!" % i)
 
-    for j in range(num_writers):
-        writer = multiprocessing.Process(target=Writer, args=(write_q, "writer%s" % j))
+    for i in range(num_writers):
+        writer = multiprocessing.Process(target=Writer, args=(write_q, lock, "writer%s" % i))
         writer.daemon = True
         writer.start()
-        __log_to_file("Writer started!")
+        __log_to_file("writer%s started!" % i)
+
+    for i in range(num_prio_writers):
+        prio_writer = multiprocessing.Process(target=Writer, args=(prio_write_q, lock, "prio_writer%s" % i))
+        prio_writer.daemon = True
+        prio_writer.start()
+        __log_to_file("prio_writer%s started!" % i)
 
     for temp_file in os.listdir("temp"):
         if temp_file[:5] == "temp_":
@@ -183,30 +210,39 @@ if __name__ == '__main__':
         if q.qsize() < 20:
             __log_to_file("Filling crawler queue.")
             next_crawler_batch = get_next_crawler_users([])
-            this_q = []
             for user in next_crawler_batch:
                 if user not in last_q:
                     try:
                         q.put_nowait(user)
-                        this_q.append(user)
-                    except:
+                        last_q.append(user)
+                    except multiprocessing.queues.Full:
+                        # breaks if queue is already full
                         break
-            last_q = this_q
+            # the last_q/last_prio_write_q/last_write_q lists
+            # are cut at the corresponding queues size to not
+            # get too big.
+            last_q = last_q[-queue_size:]
+
+        if prio_write_q.qsize() < 20:
+            next_prio_writer_batch = get_next_prio_writer_users()
+            for user in next_prio_writer_batch:
+                if user not in last_prio_write_q:
+                    try:
+                        prio_write_q.put_nowait(user)
+                        last_prio_write_q.append(user)
+                    except multiprocessing.queues.Full:
+                        break
+            last_prio_write_q = last_prio_write_q[-prio_write_queue_size:]
         if write_q.qsize() < 20:
             __log_to_file("Filling writer queue")
             next_writer_batch = get_next_writer_users()
-            this_write_q = []
             for user in next_writer_batch:
                 if user not in last_write_q:
                     try:
-                        last_write_q.append(user)
                         write_q.put_nowait(user)
-                    except:
+                        last_write_q.append(user)
+                    except multiprocessing.queues.Full:
                         break
-            # keep last_write_q until its as big as the write_queue_size
-            # if exchanged with this_write_q at each iteration
-            # the writer is sometimes still writing an old user which is
-            # added again at the second iteration and causes errors
-            last_write_q = last_write_q [-write_queue_size:]
-        time.sleep(10)
+            last_write_q = last_write_q[-write_queue_size:]
+        time.sleep(5)
 
