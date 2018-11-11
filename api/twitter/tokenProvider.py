@@ -72,7 +72,8 @@ class Token:
             user_secret)
 
     def __update_reset_time(self):
-        # update token's timestamp to real reset time
+        """update token's timestamp to real reset time"""
+
         while True:
             try:
                 response = self.api.request(self.RATE_LIMIT, {})
