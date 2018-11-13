@@ -1,0 +1,239 @@
+from neo4j.v1 import GraphDatabase, basic_auth
+import json
+import time
+import os
+
+class TracemapUserAdapter:
+
+    def __init__(self):
+        neo4j_uri = os.environ.get('NEO4J_URI')
+        neo4j_user = os.environ.get('NEO4J_USER')
+        neo4j_password = os.environ.get('NEO4J_PASSWORD')
+        self.driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+
+
+    def __request_database(self, query: str) -> object:
+        """
+        Takes a query and returns the neo4j data response of that query  
+        :param query: the query string  
+        :returns: database response data object
+        """
+        with self.driver.session() as session:
+            with session.begin_transaction() as transaction:
+                return transaction.run(query).data()
+
+    def add_tracemap_user(self, username: str, email: str, password_hash: str) -> bool:
+        """
+        Adds a user to the database  
+        :param username: the users name  
+        :param email: the users email  
+        :param password_hash: a hash of that users password  
+        :returns: True on success
+        """
+        query = "CREATE (u:TracemapUser {username: '%s', email: '%s', hash: '%s'})" % (username, email, password_hash)
+        self.__request_database(query)
+        return True
+
+    def get_tracemap_user_username(self, email: str) -> str:
+        """
+        Returns the email and username of a user identified by the email  
+        :param email: the users email  
+        :returns: the username of the requested user
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' RETURN u.username" % email
+        database_response = self.__request_database(query)
+        if database_response:
+            return database_response[0]['u.username']
+        else:
+            return ""
+
+    def get_tracemap_user_password_hash(self, email: str) -> str:
+        """
+        Get the password_hash of a user identified by the email.
+        :param email: the users email  
+        :returns: the users password_hash or an empty string if no user is found
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' RETURN u.hash" % email
+        database_response = self.__request_database(query)
+        if database_response:
+            return database_response[0]['u.hash']
+        else:
+            return ""
+
+    def set_user_session_token(self, email: str, session_token: str) -> bool:
+        """
+        Saves the users session_token and adds a unix timestamp
+        for determining the age of the token at any later time  
+        :param email: the users email  
+        :param session_token: the users session_token  
+        :returns: True on success
+        """
+        timestamp = time.time()
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "SET u.session_token = '%s' " % session_token
+        query += "SET u.session_timestamp = %s" % timestamp
+        self.__request_database(query)
+        return True
+
+    def get_user_session_token(self, email: str) -> object:
+        """
+        Get the session_token of a user if there is a valid one.  
+        :param email: the users email  
+        :returns: session_token if there is a valid one, error message if not
+        """
+        two_hours = 60 * 120
+        timestamp = time.time()
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "RETURN u.session_timestamp, u.session_token"
+        database_response = self.__request_database(query)
+        if database_response:
+            old_timestamp = database_response[0]['u.session_timestamp']
+            if old_timestamp < timestamp - two_hours:
+                # delete token and return error: expired
+                query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+                query += "REMOVE u.session_token, u.session_timestamp"
+                self.__request_database(query)
+                return {
+                    'error': 'session expired'
+                }
+            else:
+                # renew timestamp and return session_token
+                query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+                query += "SET u.session_timestamp = %s " % timestamp
+                self.__request_database(query)
+                return {
+                    'token': database_response[0]['u.session_token']
+                }
+        else:
+            # return error: no token
+            return {
+                'error': 'no session_token set'
+            }
+
+    def set_user_reset_token(self, email: str, reset_token: str) -> bool:
+        """
+        Saves the users reset_token and adds a unix timestamp
+        for determining the age of the token at any later time  
+        :param email: the users email  
+        :param reset_token: the users reset_token  
+        :returns: True on success
+        """
+        timestamp = time.time()
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "SET u.reset_token = '%s' " % reset_token
+        query += "SET u.reset_timestamp = %s " % timestamp
+        self.__request_database(query)
+        return True
+
+
+    def get_user_reset_token(self, email: str) -> object:
+        """
+        Get the reset_token of a user if there is a valid one.  
+        :param email: the users email  
+        :returns: reset_token if there is one, human readable error for display in the browser if not.
+        """
+        one_day = 60 * 60 * 24
+        timestamp = time.time()
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "RETURN u.reset_timestamp, u.reset_token"
+        database_response = self.__request_database(query)
+        if database_response:
+            reset_token = database_response[0]['u.reset_token']
+            old_timestamp = database_response[0]['u.reset_timestamp']
+            if not reset_token:
+                return {
+                    'error': 'The reset token does not exist. Please request a password reset at https://tracemap.info.'
+                }
+            else:
+                if old_timestamp < timestamp - one_day:
+                    # delete token and return expired error message
+                    return {
+                        'error': 'The link is expired. Please request a new password reset at https://tracemap.info.'
+                    }
+                else:
+                    return {
+                        'token': reset_token
+                    }
+                query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+                query += "REMOVE u.reset_token, u.reset_timestamp"
+                self.__request_database(query)
+        else:
+            # return undefined error
+            return {
+                'error': 'Something went wrong. Please try again later'
+            }
+
+
+    def delete_tracemap_user(self, email: str) -> bool:
+        """
+        Delete a user node.  
+        :param email: the users email  
+        :returns: True on success
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' DETACH DELETE u" % email
+        self.__request_database(query)
+        return True
+
+    def change_password(self, email: str, new_password_hash: str) -> bool:
+        """
+        Change a users password_hash to a new value.  
+        :param email: the users email  
+        :param new_password_hash: the new passwords hash  
+        :returns: True on success
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "SET u.hash = '%s'" % hash
+        self.__request_database(query)
+        return True
+
+    def set_user_confirmation_token(self, email: str, confirmation_token: str) -> bool:
+        """
+        Set a users confirmation token used for identifying the users subscription confirmation link.  
+        :param email: the users email  
+        :param confirmation_token: the generated confirmation_token  
+        :returns: True on success
+        """
+        timestamp = time.time()
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "SET u.confirmation_token = '%s' " % confirmation_token
+        query += "SET u.confirmation_timestamp = %s " % timestamp
+        self.__request_database(query)
+        return True
+
+    def get_user_confirmation_token(self, email: str) -> str:
+        """
+        Get the confirmation_token of a user if there is a valid one.  
+        :param email: the users email  
+        :returns: confirmation_token if there is one, human readable error for display in the browser if not.
+        """
+        one_day = 60 * 60 * 24
+        now_timestamp = time.time()
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "RETURN u.confirmation_token, u.confirmation_token"
+        database_response = self.__request_database(query)
+        if database_response:
+            confirmation_token = database_response[0]['u.confirmation_token']
+            confirmation_timestamp = database_response[0]['u.confirmation_timestamp']
+            if not confirmation_timestamp:
+                # return error: no token found
+                return {
+                    'error': 'Something went wrong. Please try to subscribe again at https://tracemap.info'
+                }
+            else:
+                if confirmation_timestamp < now_timestamp - one_day:
+                    # delete token and return expired error
+                    return {
+                        'error': 'This confirmation link is not valid anymore. Please subscribe to our newsletter again at https://tracemap.info'
+                    }
+                else:
+                    return {
+                        'token': confirmation_token
+                    }
+                query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+                query += "REMOVE u.reset_token, u.reset_timestamp"
+                self.__request_database(query)
+        else:
+            # return undefined error
+            return {
+                'error': 'Something went wrong. Please try again later.'
+            }
