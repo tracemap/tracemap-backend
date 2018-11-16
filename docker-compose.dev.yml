@@ -5,6 +5,10 @@ services:
     build: .
     ports:
      - '5000:5000'
+     - '7687:7687'
+     - '7474:7474'
+     - '7473:7473'
     volumes:
      - .:/usr/src/app
-    env_file: .env
+    env_file: .env-dev
+    network_mode: "host"

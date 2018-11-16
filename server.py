@@ -1,27 +1,23 @@
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
+from deprecated import deprecated
 
 from elasticapm.contrib.flask import ElasticAPM
 
 import api.neo4j.neo4jApi as neo4jApi
-import api.newsletter.newsletterApi as newsletterApi
-import api.auth.betaAuth as betaAuth
+import api.user.newsletterModule as newsletterModule
+import api.user.userManager as userManager
 import api.logging.logger as logger
 
 from api.twitter.twitterApi import TracemapTwitterApi
 twitterApi = TracemapTwitterApi()
 
 app = Flask(__name__)
-apm = ElasticAPM(app, logging=True)
+# apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 def __is_session_valid(email: str, session_token: str) -> bool:
-
-    if email and session_token:
-        response = betaAuth.check_session(email, session_token)
-        return response.get('session', False)
-    else:
-        return False
+    return userManager.check_session(email, session_token)
 
 @app.route('/status')
 def health_check():
@@ -139,14 +135,26 @@ def neo4j_label_unknown_users():
     else:
         return Response("Bad Request", status=400)
 
+@deprecated(version='0.1.0', reason="Use '/newsletter/start_subscription' and 'newsletter/confirm_subscription'")
 @app.route('/newsletter/save_subscriber', methods= ['POST'])
 def newsletter_save_subscriber():
+    return jsonify({'error': 'Please empty your cache and reload this page to subscribe.'})
+
+@app.route('/newsletter/start_subscription', methods = ['POST'])
+def newsletter_start_subscription():
     body = request.get_json()
-    if body and "email" in body:
+    if body and all (keys in body for keys in 
+    ("email", "newsletter_subscribed", "beta_subscribed")):
         email = body['email']
-        return jsonify(newsletterApi.save_subscriber(email))
+        newsletter_subscribed = body['newsletter_subscribed']
+        beta_subscribed = body['beta_subscribed']
+        return jsonify(newsletterModule.start_save_subscriber(email, newsletter_subscribed, beta_subscribed))
     else:
         return Response("Bad Request", status=400)
+
+@app.route('/newsletter/confirm_subscription/<string:email>/<string:confirmation_token>')
+def newsletter_confirm_subscription(email:str, confirmation_token: str):
+    return newsletterModule.save_subscriber(email, confirmation_token)
 
 @app.route('/auth/check_password', methods = ['POST'])
 def auth_check_password():
@@ -155,18 +163,18 @@ def auth_check_password():
     ("password","email")):
         email = body['email']
         password = body['password']
-        return jsonify(betaAuth.check_password(email, password))
+        return jsonify(userManager.check_password(email, password))
     else:
         return Response("Bad Request", status=400)
 
 @app.route('/auth/add_user', methods = ['POST'])
-def auth_add_user():
+def auth_register_user():
     body = request.get_json()
     if body and all (keys in body for keys in 
     ("username","email")):
         email = body['email']
         username = body['username']
-        return jsonify(betaAuth.add_user(username, email))
+        return jsonify(userManager.register_user(username, email))
     else:
         return Response("Bad Request", status=400)
 
@@ -177,7 +185,7 @@ def auth_delete_user():
     ("password","email")):
         email = body['email']
         password = body['password']
-        return jsonify(betaAuth.delete_user(email, password))
+        return jsonify(userManager.delete_user(email, password))
     else:
         return Response("Bad Request", status=400)
 
@@ -189,18 +197,21 @@ def auth_change_password():
         email = body['email']
         old_password = body['old_password']
         new_password = body['new_password']
-        return jsonify(betaAuth.change_password(email, old_password, new_password))
+        return jsonify(userManager.change_password(email, old_password, new_password))
     else:
         return Response("Bad Request", status=400)
 
 @app.route('/auth/get_user_data', methods = ['POST'])
-def auth_get_user_data():
+def auth_get_user_username():
     body = request.get_json()
     if body and all (keys in body for keys in 
     ("email", "session_token")):
         email = body['email']
         session_token = body['session_token']
-        return jsonify(betaAuth.get_user_data(email, session_token))
+        if __is_session_valid(email, session_token):
+            return jsonify(userManager.get_username(email))
+        else:
+            return Response("Forbidden", status=403)
     else:
         return Response("Bad Request", status=400)
 
@@ -211,20 +222,28 @@ def auth_check_session():
     ("session_token","email")):
         email = body['email']
         session_token = body['session_token']
-        return jsonify(betaAuth.check_session(email, session_token))
+        if jsonify(__is_session_valid(email, session_token)):
+            return jsonify(True)
+        else:
+            return Response("Forbidden", status=403)
     else:
         return Response("Bad Request", status=400)
 
 @app.route('/auth/reset_password/<string:email>/<string:reset_token>')
 def auth_reset_password(email: str, reset_token: str):
-    return betaAuth.reset_password(email, reset_token)
+    return userManager.reset_password(email, reset_token)
 
 @app.route('/auth/request_reset_password', methods = ['POST'])
 def auth_request_reset_password():
     body = request.get_json()
-    if body and "email" in body:
+    if body and all (key in body for key in 
+    ("email", "session_token")):
         email = body['email']
-        return jsonify(betaAuth.request_reset_user(email))
+        session_token = body['session_token']
+        if __is_session_valid(email, session_token):
+            return jsonify(userManager.request_reset_user(email))
+        else:
+            return Response("Forbidden", status=403)
     else:
         return Response("Bad Request", status=400)
     
@@ -251,4 +270,4 @@ def logging_write_log():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="192.168.65.0", debug=True)

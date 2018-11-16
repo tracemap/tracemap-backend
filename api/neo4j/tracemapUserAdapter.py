@@ -1,4 +1,5 @@
 from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j.exceptions import CypherError
 import json
 import time
 import os
@@ -20,25 +21,80 @@ class TracemapUserAdapter:
         """
         with self.driver.session() as session:
             with session.begin_transaction() as transaction:
-                return transaction.run(query).data()
+                try:
+                    response_data = transaction.run(query).data()
+                    return response_data
+                except CypherError as e:
+                    return {'error': self.__check_database_error_code(e.code)}
 
-    def add_tracemap_user(self, username: str, email: str, password_hash: str) -> bool:
+    @staticmethod
+    def __check_database_error_code(code):
+        return {
+            'Neo.ClientError.Schema.ConstraintValidationFailed': 'Constraint Error'
+        }.get(code, "unhandled error %s" % code)
+
+
+    def get_user_status(self, email: str) -> object:
+        """
+        Check the status of a user by its email.  
+        :param email: the users email  
+        :returns: a dict containing boolean values for
+        'exists', 'beta_subscribed', 'newsletter_subscribed', 'registered' 
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "RETURN {username: u.username, newsletter_subscribed: u.newsletter_subscribed, beta_subscribed: u.beta_subscribed} as user_status"
+        response = self.__request_database(query)
+        if response:
+            user_data = response[0]['user_status']
+            return {
+                'exists': True,
+                'registered': bool(user_data['username']),
+                'newsletter_subscribed': bool(user_data['newsletter_subscribed']),
+                'beta_subscribed': bool(user_data['beta_subscribed'])
+            }
+        else:
+            return {
+                'exists': False,
+                'registered': False,
+                'newsletter_subscribed': False,
+                'beta_subscribed': False
+            }
+
+    def add_user(self, email: str) -> bool:
+        """
+        Create the basic user object in the database.
+        This user is just identified by its email and
+        has no access to the tool if the password and username
+        properties are not set.
+        :param email: the users email
+        :returns: True on success, False if user for this email already exists
+        """
+        query = "CREATE (u:TracemapUser {email: '%s'})" % email
+        response = self.__request_database(query)
+        if 'error' in response:
+            return False
+        else:
+            return True
+
+    def set_user_username_password(self, username: str, email: str, password_hash: str) -> bool:
         """
         Adds a user to the database  
         :param username: the users name  
         :param email: the users email  
         :param password_hash: a hash of that users password  
-        :returns: True on success
+        :returns: True on success, False if user does not exist
         """
-        query = "CREATE (u:TracemapUser {username: '%s', email: '%s', hash: '%s'})" % (username, email, password_hash)
-        self.__request_database(query)
-        return True
+        query = "MATCH (u:TracemapUser {email: '%s'}) " % email
+        query += "SET u.username = '%s', u.password_hash = '%s' " % (username, password_hash)
+        query += "RETURN u"
+        response = self.__request_database(query)
+        return bool(response)
 
-    def get_tracemap_user_username(self, email: str) -> str:
+    def get_user_username(self, email: str) -> str:
         """
         Returns the email and username of a user identified by the email  
         :param email: the users email  
-        :returns: the username of the requested user
+        :returns: the username string or an empty string if user does not exist
         """
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' RETURN u.username" % email
         database_response = self.__request_database(query)
@@ -47,11 +103,11 @@ class TracemapUserAdapter:
         else:
             return ""
 
-    def get_tracemap_user_password_hash(self, email: str) -> str:
+    def get_user_password_hash(self, email: str) -> str:
         """
         Get the password_hash of a user identified by the email.
         :param email: the users email  
-        :returns: the users password_hash or an empty string if no user is found
+        :returns: the users password_hash or an empty string if user does not exist
         """
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' RETURN u.hash" % email
         database_response = self.__request_database(query)
@@ -75,11 +131,11 @@ class TracemapUserAdapter:
         self.__request_database(query)
         return True
 
-    def get_user_session_token(self, email: str) -> object:
+    def get_user_session_token(self, email: str) -> str:
         """
         Get the session_token of a user if there is a valid one.  
         :param email: the users email  
-        :returns: session_token if there is a valid one, error message if not
+        :returns: session_token string if there is a valid one, empty string if not
         """
         two_hours = 60 * 120
         timestamp = time.time()
@@ -93,22 +149,16 @@ class TracemapUserAdapter:
                 query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
                 query += "REMOVE u.session_token, u.session_timestamp"
                 self.__request_database(query)
-                return {
-                    'error': 'session expired'
-                }
+                return ""
             else:
                 # renew timestamp and return session_token
                 query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
                 query += "SET u.session_timestamp = %s " % timestamp
                 self.__request_database(query)
-                return {
-                    'token': database_response[0]['u.session_token']
-                }
+                return database_response[0]['u.session_token']
         else:
             # return error: no token
-            return {
-                'error': 'no session_token set'
-            }
+            return ""
 
     def set_user_reset_token(self, email: str, reset_token: str) -> bool:
         """
@@ -116,14 +166,15 @@ class TracemapUserAdapter:
         for determining the age of the token at any later time  
         :param email: the users email  
         :param reset_token: the users reset_token  
-        :returns: True on success
+        :returns: True on success, False if user does not exist
         """
         timestamp = time.time()
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
         query += "SET u.reset_token = '%s' " % reset_token
         query += "SET u.reset_timestamp = %s " % timestamp
-        self.__request_database(query)
-        return True
+        query += "RETURN u"
+        response = self.__request_database(query)
+        return bool(response)
 
 
     def get_user_reset_token(self, email: str) -> object:
@@ -160,11 +211,11 @@ class TracemapUserAdapter:
         else:
             # return undefined error
             return {
-                'error': 'Something went wrong. Please try again later'
+                'error': 'User does not exist.'
             }
 
 
-    def delete_tracemap_user(self, email: str) -> bool:
+    def delete_user(self, email: str) -> bool:
         """
         Delete a user node.  
         :param email: the users email  
@@ -174,31 +225,72 @@ class TracemapUserAdapter:
         self.__request_database(query)
         return True
 
-    def change_password(self, email: str, new_password_hash: str) -> bool:
+    def set_user_password_hash(self, email: str, new_password_hash: str) -> bool:
         """
         Change a users password_hash to a new value.  
         :param email: the users email  
         :param new_password_hash: the new passwords hash  
-        :returns: True on success
+        :returns: True on success, False if user does not exist
         """
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
-        query += "SET u.hash = '%s'" % hash
-        self.__request_database(query)
-        return True
+        query += "SET u.hash = '%s' " % hash
+        query += "RETURN u"
+        response = self.__request_database(query)
+        return bool(response)
+
+    def set_user_subscription_status(self, email: str, newsletter_subscribed: bool, beta_subscribed: bool) -> bool:
+        """
+        Sets the user subscription status to 0 for unconfirmed subscriptions.  
+        :param email: the users email  
+        :param newsletter_subscribed: has the user subscribed to the newsletter?  
+        :param beta_subscribed: has the user subscribed to the beta?  
+        :returns: True on success, False on Error
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        if newsletter_subscribed:
+            query += "SET u.newsletter_subscribed = 0 "
+        if beta_subscribed:
+            query += "SET u.beta_subscribed = 0 "
+        query += "RETURN u"
+        response = self.__request_database(query)
+        return bool(response)
+    
+    def confirm_user_subscription_status(self, email: str) -> bool:
+        """
+        Confirms the subscription but changing the value of the subscription properties
+        from 0 to True.  
+        :param email: the users email  
+        :returns: True for success, False if user does not exist
+        """
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "RETURN {newsletter_subscribed: u.newsletter_subscribed, beta_subscribed: u.beta_subscribed} as subscription_status"
+        response = self.__request_database(query)
+        if response:
+            subscription_status = response[0]['subscription_status']
+            query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+            if subscription_status['newsletter_subscribed'] == 0:
+                query += "SET u.newsletter_subscribed = True "
+            if subscription_status['beta_subscribed'] == 0:
+                query += "SET u.beta_subscribed = True "
+            self.__request_database(query)
+            return True
+        else:
+            return False
 
     def set_user_confirmation_token(self, email: str, confirmation_token: str) -> bool:
         """
         Set a users confirmation token used for identifying the users subscription confirmation link.  
         :param email: the users email  
         :param confirmation_token: the generated confirmation_token  
-        :returns: True on success
+        :returns: True on success, False if user does not exist
         """
         timestamp = time.time()
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
         query += "SET u.confirmation_token = '%s' " % confirmation_token
         query += "SET u.confirmation_timestamp = %s " % timestamp
-        self.__request_database(query)
-        return True
+        query += "RETURN u"
+        response = self.__request_database(query)
+        return bool(response)
 
     def get_user_confirmation_token(self, email: str) -> str:
         """
@@ -235,5 +327,5 @@ class TracemapUserAdapter:
         else:
             # return undefined error
             return {
-                'error': 'Something went wrong. Please try again later.'
+                'error': 'User does not exist.'
             }
