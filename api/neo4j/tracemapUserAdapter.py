@@ -7,11 +7,9 @@ import os
 class TracemapUserAdapter:
 
     def __init__(self):
-        neo4j_uri = os.environ.get('NEO4J_URI')
-        neo4j_user = os.environ.get('NEO4J_USER')
-        neo4j_password = os.environ.get('NEO4J_PASSWORD')
-        self.driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-
+        uri = os.environ.get('NEO4J_URI')
+        self.driver = GraphDatabase.driver(uri, auth=(os.environ.get('NEO4J_USER'),
+        os.environ.get('NEO4J_PASSWORD')))
 
     def __request_database(self, query: str) -> object:
         """
