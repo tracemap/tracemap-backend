@@ -5,9 +5,10 @@ import os
 from TwitterAPI import TwitterAPI
 from api.twitter.tokenProvider import Token
 
+
 class TracemapTwitterApi:
 
-    def __request_twitter(self, route: str, params: dict, route_extension: str="") -> dict:
+    def __request_twitter(self, route: str, params: dict, route_extension: str = "") -> dict:
         if not hasattr(self, route):
             token_instance = Token(route)
             setattr(self, route, token_instance)
@@ -46,7 +47,7 @@ class TracemapTwitterApi:
 
                 return "continue"
             elif error_response in ("Invalid user", "Not authorized"):
-                    return "invalid user"
+                return "invalid user"
             else:
                 return error_response
 
@@ -69,7 +70,7 @@ class TracemapTwitterApi:
         for id in uid_list:
             params = {'user_id': id}
             data = self.__request_twitter(route, params)
-            results['response'][ str(id)] = self.__format_user_info( data)
+            results['response'][str(id)] = self.__format_user_info(data)
         return results
 
     def get_tweet_info(self, tweet_id: str) -> dict:
@@ -85,7 +86,7 @@ class TracemapTwitterApi:
     def get_retweeters(self, tweet_id: str) -> dict:
         """Request the 100 last retweet ids, return them as a list"""
         route = 'statuses/retweeters/ids'
-        params = { 'id': str(tweet_id)}
+        params = {'id': str(tweet_id)}
         data = self.__request_twitter(route, params)
         response = {}
         response['response'] = data['ids']
@@ -112,17 +113,17 @@ class TracemapTwitterApi:
         """Get the latest tweets of a user.
         Returns last 200 retweets."""
         params = {
-            'user_id': str(user_id), 
+            'user_id': str(user_id),
             'exclude_replies': False,
             'count': 200,
-            'tweet_mode':'extended'
+            'tweet_mode': 'extended'
         }
         route = "statuses/user_timeline"
         data = self.__request_twitter(route, params)
         return data
 
     @staticmethod
-    def __parse_properties( data, keys: list) -> dict:
+    def __parse_properties(data, keys: list) -> dict:
         response = {}
         for key in keys:
             if key in data:
@@ -130,38 +131,38 @@ class TracemapTwitterApi:
         return response
 
     @staticmethod
-    def __format_user_info( data: dict) -> dict:
+    def __format_user_info(data: dict) -> dict:
         """Format get_user_info data as a dictionary of relevant data"""
         user_dict = {}
-        user_dict[ "timestamp"] = str(time.time())
-        user_dict[ "name"] = str( data['name'])
-        user_dict[ "screen_name"] = str( data['screen_name'])
-        user_dict[ "location"] = str( data['location'])
-        user_dict[ "lang"] = str(data['lang'])
-        user_dict[ "followers_count"] = int(data['followers_count'])
-        user_dict[ "friends_count"] = int(data['friends_count'])
-        user_dict[ "statuses_count"] = int(data['statuses_count'])
-        user_dict[ "created_at"] = str(data['created_at'])
-        user_dict[ "profile_image_url"] = str(data['profile_image_url'])
-        return( user_dict)
+        user_dict["timestamp"] = str(time.time())
+        user_dict["name"] = str(data['name'])
+        user_dict["screen_name"] = str(data['screen_name'])
+        user_dict["location"] = str(data['location'])
+        user_dict["lang"] = str(data['lang'])
+        user_dict["followers_count"] = int(data['followers_count'])
+        user_dict["friends_count"] = int(data['friends_count'])
+        user_dict["statuses_count"] = int(data['statuses_count'])
+        user_dict["created_at"] = str(data['created_at'])
+        user_dict["profile_image_url"] = str(data['profile_image_url'])
+        return (user_dict)
 
     @staticmethod
-    def __format_tweet_info( data: dict) -> dict:
+    def __format_tweet_info(data: dict) -> dict:
         data = data[0]
         response = {}
         response['response'] = {}
-        response['response'][ data['id_str']] = {}
-        tweet_dict = response['response'][ data['id_str']]
-        tweet_dict["reply_to"] = str( data['in_reply_to_status_id_str'])
-        tweet_dict["lang"] = str( data['lang'])
-        tweet_dict["author"] = str( data['user']['id_str'])
-        tweet_dict["fav_count"] = str( data['favorite_count'])
-        tweet_dict["retweet_count"] = str( data['retweet_count'])
-        tweet_dict["date"] = str( data['created_at'])
-     # The following values are lists
+        response['response'][data['id_str']] = {}
+        tweet_dict = response['response'][data['id_str']]
+        tweet_dict["reply_to"] = str(data['in_reply_to_status_id_str'])
+        tweet_dict["lang"] = str(data['lang'])
+        tweet_dict["author"] = str(data['user']['id_str'])
+        tweet_dict["fav_count"] = str(data['favorite_count'])
+        tweet_dict["retweet_count"] = str(data['retweet_count'])
+        tweet_dict["date"] = str(data['created_at'])
+        # The following values are lists
         tweet_dict["hashtags"] = data['entities']['hashtags']
         tweet_dict["user_mentions"] = data['entities']['user_mentions']
-        return( response)
+        return (response)
 
     def __format_tweet_data(self, data: dict) -> dict:
         response = {}
