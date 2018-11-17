@@ -42,7 +42,8 @@ class TracemapTwitterApi:
             return ""
         else:
             if error_response == "Switch helper":
-                token_instance.__get_user_auth()
+                token_instance.get_user_auth()
+
                 return "continue"
             elif error_response in ("Invalid user", "Not authorized"):
                     return "invalid user"

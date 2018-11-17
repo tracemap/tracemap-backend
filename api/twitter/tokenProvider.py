@@ -16,7 +16,7 @@ class Token:
         self.app_token = os.environ.get('APP_TOKEN')
         self.app_secret = os.environ.get('APP_SECRET')
         self.__cleanup_last_session()
-        self.__get_user_auth()
+        self.get_user_auth()
 
     def __connect_to_db(self):
         while True:
@@ -33,7 +33,7 @@ class Token:
                 time.sleep(5)
                 continue
 
-    def __get_user_auth(self):
+    def get_user_auth(self):
         """
         Return old token by updating the reset time
         and get a free token.
@@ -81,12 +81,13 @@ class Token:
                 print("13 - ERROR -> %s. ConnectTimeout retrying in 10s..." % exc)
                 time.sleep(10)
                 continue
-        parsed_response = json.loads(response.text)['resources']
+        parsed_response = json.loads(response.text)
         try:
-            for category in parsed_response.keys():
-                for route in parsed_response[category].keys():
+            resources = parsed_response['resources']
+            for category in resources.keys():
+                for route in resources[category].keys():
                     if self.twitter_route in route:
-                        reset_time = parsed_response[category][route]['reset']
+                        reset_time = resources[category][route]['reset']
             query = "MATCH (h:TOKEN{token:'%s'}) " % self.user_token
             query += "SET h.`%s`=%s" % (self.twitter_route, reset_time)
             self.__run_query(query)
