@@ -20,7 +20,8 @@ class TracemapTwitterApi:
                 time.sleep(10)
                 continue
             parsed_response = response.json()
-            error_response = self.__check_error(api, parsed_response)
+            print(parsed_response)
+            error_response = self.__check_error(token_instance, parsed_response)
             if error_response:
                 if error_response == 'continue':
                     continue
@@ -29,7 +30,7 @@ class TracemapTwitterApi:
             else:
                 return parsed_response
 
-    def __check_error(self, api, response: dict) -> str:
+    def __check_error(self, token_instance, response: dict) -> str:
         error_response = ""
         if 'error' in response:
             error_response = self.__check_twitter_error_code(
@@ -41,7 +42,7 @@ class TracemapTwitterApi:
             return ""
         else:
             if error_response == "Switch helper":
-                api.__get_user_auth()
+                token_instance.__get_user_auth()
                 return "continue"
             elif error_response in ("Invalid user", "Not authorized"):
                     return "invalid user"

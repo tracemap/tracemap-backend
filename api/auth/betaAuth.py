@@ -75,12 +75,11 @@ def __send_verification_mail(username, email, password):
 
     After using the Tool and finding around, we would like to
     get your feedback about it here:
-    https://link-to-survey.de
+    https://goo.gl/forms/37vROtjqgL6nexyt2
     (it will take you ~ 15min.)
     Thanks for the feedback!
 
-    If you got questions regarding the beta you can answer this mail.
-    For any non-beta questions, please use contact@tracemap.info
+    If you got any questions, please email us at contact@tracemap.info
 
     Best,
     Allegra, Bruno, Jonathan & Eike from TraceMap.
