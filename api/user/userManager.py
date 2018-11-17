@@ -13,10 +13,13 @@ def __get_beta_users() -> set:
     :returns: the set containing all beta users
     """
     beta_users_set = set()
-    with open('user-data/beta_users.txt') as f:
+    with open('./user-data/beta_users.txt') as f:
         beta_users_list = f.readlines()
         for email in beta_users_list:
+            if '\n' == email[-1]:
+                email = email[:-1]
             beta_users_set.add(email.lower())
+    print(beta_users_set)
     return beta_users_set
 
 
