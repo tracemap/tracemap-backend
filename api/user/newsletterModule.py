@@ -19,12 +19,19 @@ def start_save_subscriber( email: str, newsletter_subscribed: bool, beta_subscri
     if not user_status['exists']:
         userAdapter.add_user(email)
     if newsletter_subscribed:
-        # check previous newsletter subscriptions
-        if user_status['newsletter_subscribed']:
+        # check if newsletter subscription process has already been started but not finisched
+        if user_status['newsletter_subscribed'] == 0:
             response_msg['newsletter_subscribed'] = False
+            response_msg['frontend_message'] = 'Please check your inbox and click<br>the confirmation link in the email we sent you.'
             newsletter_subscribed = False
-        else:
+        # check if newsletter subscription has not been started before
+        elif not user_status['newsletter_subscribed']:
             response_msg['newsletter_subscribed'] = True
+            response_msg['frontend_message'] = 'To finish the subscription, please check your inbox and click<br>the confirmation link in the email you received from us.'
+        else:
+            response_msg['newsletter_subcribed'] = False
+            response_msg['frontend_message'] = 'Thanks for insisting.<br>You have already subscribed.'
+            newsletter_subscribed = False
     if beta_subscribed:
         # check previous beta subscriptions
         if user_status['beta_subscribed']:
@@ -51,13 +58,17 @@ def save_subscriber( email: str, confirmation_token: str) -> str:
     :param email: the users email  
     :returns: Human readable string to be shown in the browser
     """
-    if confirmation_token == userAdapter.get_user_confirmation_token(email):
+    response = userAdapter.get_user_confirmation_token(email)
+    if 'token' in response and confirmation_token == response['token']:
         if userAdapter.confirm_user_subscription_status(email):
             return "You have successfully confirmed your subscription."
         else:
             return "Something went wrong. Please try to subscribe again."
     else:
-        return "This confirmation link is not valid anymore. Please subscribe again at https://tracemap.info"
+        if 'error' in response:
+            return response['error']
+        else:
+            return "The token did not match. Please try to subscribe again at https://tracemap.info"
         
 
 

@@ -135,11 +135,6 @@ def neo4j_label_unknown_users():
     else:
         return Response("Bad Request", status=400)
 
-@deprecated(version='0.1.0', reason="Use '/newsletter/start_subscription' and 'newsletter/confirm_subscription'")
-@app.route('/newsletter/save_subscriber', methods= ['POST'])
-def newsletter_save_subscriber():
-    return jsonify({'error': 'Please empty your cache and reload this page to subscribe.'})
-
 @app.route('/newsletter/start_subscription', methods = ['POST'])
 def newsletter_start_subscription():
     body = request.get_json()

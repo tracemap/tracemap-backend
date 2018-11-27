@@ -47,8 +47,8 @@ class TracemapUserAdapter:
             return {
                 'exists': True,
                 'registered': bool(user_data['username']),
-                'newsletter_subscribed': bool(user_data['newsletter_subscribed']),
-                'beta_subscribed': bool(user_data['beta_subscribed'])
+                'newsletter_subscribed': user_data['newsletter_subscribed'],
+                'beta_subscribed': user_data['beta_subscribed']
             }
         else:
             return {
@@ -107,10 +107,10 @@ class TracemapUserAdapter:
         :param email: the users email  
         :returns: the users password_hash or an empty string if user does not exist
         """
-        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' RETURN u.hash" % email
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' RETURN u.password_hash" % email
         database_response = self.__request_database(query)
-        if database_response:
-            return database_response[0]['u.hash']
+        if database_response and 'u.password_hash' in database_response[0]:
+            return database_response[0]['u.password_hash']
         else:
             return ""
 
@@ -270,6 +270,7 @@ class TracemapUserAdapter:
                 query += "SET u.newsletter_subscribed = True "
             if subscription_status['beta_subscribed'] == 0:
                 query += "SET u.beta_subscribed = True "
+            query += "REMOVE u.confirmation_token, u.confirmation_timestamp"
             self.__request_database(query)
             return True
         else:
@@ -299,7 +300,7 @@ class TracemapUserAdapter:
         one_day = 60 * 60 * 24
         now_timestamp = time.time()
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
-        query += "RETURN u.confirmation_token, u.confirmation_token"
+        query += "RETURN u.confirmation_token, u.confirmation_timestamp"
         database_response = self.__request_database(query)
         if database_response:
             confirmation_token = database_response[0]['u.confirmation_token']
@@ -313,14 +314,14 @@ class TracemapUserAdapter:
                 if confirmation_timestamp < now_timestamp - one_day:
                     # delete token and return expired error
                     return {
-                        'error': 'This confirmation link is not valid anymore. Please subscribe to our newsletter again at https://tracemap.info'
+                        'error': 'This confirmation link is not valid anymore. Please subscribe again at https://tracemap.info'
                     }
                 else:
                     return {
                         'token': confirmation_token
                     }
                 query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
-                query += "REMOVE u.reset_token, u.reset_timestamp"
+                query += "REMOVE u.confirmation_token, u.confirmation_timestamp"
                 self.__request_database(query)
         else:
             # return undefined error
