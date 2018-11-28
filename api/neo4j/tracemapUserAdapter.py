@@ -142,7 +142,7 @@ class TracemapUserAdapter:
         database_response = self.__request_database(query)
         if database_response:
             old_timestamp = database_response[0]['u.session_timestamp']
-            if old_timestamp < timestamp - two_hours:
+            if (not old_timestamp) or (old_timestamp < timestamp - two_hours):
                 # delete token and return error: expired
                 query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
                 query += "REMOVE u.session_token, u.session_timestamp"
@@ -215,11 +215,13 @@ class TracemapUserAdapter:
 
     def delete_user(self, email: str) -> bool:
         """
-        Delete a user node.  
+        Delete TracemapUser nodes registration properties (especially password_hash and username).
+        Dont delete the whole node because of subscriptions.
         :param email: the users email  
         :returns: True on success
         """
-        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' DETACH DELETE u" % email
+        query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
+        query += "REMOVE u.username, u.password_hash, u.session_token, u.session_timestamp"
         self.__request_database(query)
         return True
 
@@ -231,7 +233,7 @@ class TracemapUserAdapter:
         :returns: True on success, False if user does not exist
         """
         query = "MATCH (u:TracemapUser) WHERE u.email = '%s' " % email
-        query += "SET u.hash = '%s' " % hash
+        query += "SET u.password_hash = '%s' " % new_password_hash
         query += "RETURN u"
         response = self.__request_database(query)
         return bool(response)

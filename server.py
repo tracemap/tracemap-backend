@@ -196,7 +196,7 @@ def auth_change_password():
     else:
         return Response("Bad Request", status=400)
 
-@app.route('/auth/get_user_data', methods = ['POST'])
+@app.route('/auth/get_username', methods = ['POST'])
 def auth_get_user_username():
     body = request.get_json()
     if body and all (keys in body for keys in 
@@ -224,23 +224,18 @@ def auth_check_session():
     else:
         return Response("Bad Request", status=400)
 
-@app.route('/auth/reset_password/<string:email>/<string:reset_token>')
-def auth_reset_password(email: str, reset_token: str):
-    return userManager.reset_password(email, reset_token)
-
 @app.route('/auth/request_reset_password', methods = ['POST'])
 def auth_request_reset_password():
     body = request.get_json()
-    if body and all (key in body for key in 
-    ("email", "session_token")):
+    if body and 'email' in body: 
         email = body['email']
-        session_token = body['session_token']
-        if __is_session_valid(email, session_token):
-            return jsonify(userManager.request_reset_user(email))
-        else:
-            return Response("Forbidden", status=403)
+        return jsonify(userManager.request_reset_user(email))
     else:
         return Response("Bad Request", status=400)
+
+@app.route('/auth/reset_password/<string:email>/<string:reset_token>')
+def auth_reset_password(email: str, reset_token: str):
+    return userManager.reset_password(email, reset_token)
     
 @app.route('/logging/write_log', methods = ['POST'])
 def logging_write_log():

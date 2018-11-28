@@ -29,7 +29,7 @@ def __generate_random_pass() -> str:
     :returns: the password string
     """
     chars = string.ascii_lowercase + string.digits
-    size = 10
+    size = 20
     return ''.join(random.choice(chars) for x in range(size))
 
 def generate_token() -> str:
@@ -100,7 +100,7 @@ def check_password(email: str, password:str) -> object:
     """
     db_password_hash = userAdapter.get_user_password_hash(email)
     if db_password_hash:
-        if check_password_hash(db_password_hash, password):
+        if check_password_hash(db_password_hash, password.strip()):
             db_session_token = userAdapter.get_user_session_token(email)
             if db_session_token:
                 session_token = db_session_token
@@ -189,8 +189,8 @@ def reset_password(email: str, reset_token: str) -> str:
     :param reset_token: the reset_token for checking against the database  
     :returns: Human readable string to be displayed in the users browser
     """
-    db_reset_token = userAdapter.get_user_reset_token(email)
-    if reset_token == db_reset_token:
+    db_reset_object = userAdapter.get_user_reset_token(email)
+    if reset_token == db_reset_object['token']:
         password = __generate_random_pass()
         password_hash = generate_password_hash(password)
         userAdapter.set_user_password_hash(email, password_hash)
