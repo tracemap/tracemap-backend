@@ -2,6 +2,25 @@ import smtplib
 import os
 from email.mime.text import MIMEText
 
+def __send_mail(message: str, receiver_email: str) -> object:
+    try: 
+        email_user = os.environ.get('BETA_MAIL_ADDRESS')
+        email_password = os.environ.get('BETA_MAIL_PASSWORD')
+        smtpObj = smtplib.SMTP( 'smtp.strato.de', 587)
+        smtpObj.ehlo()
+        smtpObj.starttls()
+        smtpObj.ehlo()
+        smtpObj.login(email_user, email_password)
+        smtpObj.sendmail('beta@tracemap.info', receiver_email, message.as_string())
+        smtpObj.quit()
+        return {
+            "mail_sent": True
+        }
+    except Exception as error:
+        return {
+            'error': str(error)
+        }
+
 def send_credentials_mail(username: str, email: str, password: str) -> object:
     """
     Send the register verfification mail to a users email  
@@ -45,23 +64,7 @@ def send_credentials_mail(username: str, email: str, password: str) -> object:
     msg['Subject'] = 'Welcome %s! Your TraceMap beta Account was created.' % username
     msg['From'] = 'beta@tracemap.info'
     msg['To'] = email
-    try: 
-        email_user = os.environ.get('BETA_MAIL_ADDRESS')
-        email_password = os.environ.get('BETA_MAIL_PASSWORD')
-        smtpObj = smtplib.SMTP( 'smtp.strato.de', 587)
-        smtpObj.ehlo()
-        smtpObj.starttls()
-        smtpObj.ehlo()
-        smtpObj.login(email_user, email_password)
-        smtpObj.sendmail('beta@tracemap.info', email, msg.as_string())
-        smtpObj.quit()
-        return {
-            "mail_sent": True
-        }
-    except Exception as error:
-        return {
-            'error': str(error)
-        }
+    return __send_mail(msg, email)
 
 def send_reset_mail(username: str, email: str, reset_link: str) -> bool:
     """
@@ -91,21 +94,7 @@ def send_reset_mail(username: str, email: str, reset_link: str) -> bool:
     msg['Subject'] = 'How to reset your password.'
     msg['From'] = 'beta@tracemap.info'
     msg['To'] = email
-    try: 
-        email_user = os.environ.get('BETA_MAIL_ADDRESS')
-        email_password = os.environ.get('BETA_MAIL_PASSWORD')
-        smtpObj = smtplib.SMTP( 'smtp.strato.de', 587)
-        smtpObj.ehlo()
-        smtpObj.starttls()
-        smtpObj.ehlo()
-        smtpObj.login(email_user, email_password)
-        smtpObj.sendmail('beta@tracemap.info', email, msg.as_string())
-        smtpObj.quit()
-        return True
-    except Exception as error:
-        return {
-            'error': str(error)
-        }
+    return __send_mail(msg, email)
 
 def send_subscription_confirmation_mail(email: str, confirmation_link: str, newsletter_checked: bool, beta_checked: bool) -> object:
     """
@@ -181,23 +170,7 @@ def send_subscription_confirmation_mail(email: str, confirmation_link: str, news
     msg['Subject'] = 'Thanks for subscribing, please finish your subscription now.'
     msg['From'] = 'beta@tracemap.info'
     msg['To'] = email
-    try: 
-        email_user = os.environ.get('BETA_MAIL_ADDRESS')
-        email_password = os.environ.get('BETA_MAIL_PASSWORD')
-        smtpObj = smtplib.SMTP( 'smtp.strato.de', 587)
-        smtpObj.ehlo()
-        smtpObj.starttls()
-        smtpObj.ehlo()
-        smtpObj.login(email_user, email_password)
-        smtpObj.sendmail('beta@tracemap.info', email, msg.as_string())
-        smtpObj.quit()
-        return {
-            "mail_sent": True
-        }
-    except Exception as error:
-        return {
-            'error': str(error)
-        }
+    return __send_mail(msg, email)
 
 def send_new_password(username: str, email: str, new_password: str) -> object:
     """
@@ -228,23 +201,7 @@ def send_new_password(username: str, email: str, new_password: str) -> object:
         password=new_password
     )
     msg = MIMEText(msg_string)
-    msg['Subject'] = 'Hey %s. Here is your new TraceMap password.' % username
+    msg['Subject'] = 'Hey %s, here\'s your new TraceMap password.' % username
     msg['From'] = 'beta@tracemap.info'
     msg['To'] = email
-    try: 
-        email_user = os.environ.get('BETA_MAIL_ADDRESS')
-        email_password = os.environ.get('BETA_MAIL_PASSWORD')
-        smtpObj = smtplib.SMTP( 'smtp.strato.de', 587)
-        smtpObj.ehlo()
-        smtpObj.starttls()
-        smtpObj.ehlo()
-        smtpObj.login(email_user, email_password)
-        smtpObj.sendmail('beta@tracemap.info', email, msg.as_string())
-        smtpObj.quit()
-        return {
-            "mail_sent": True
-        }
-    except Exception as error:
-        return {
-            'error': str(error)
-        }
+    return __send_mail(msg, email)
