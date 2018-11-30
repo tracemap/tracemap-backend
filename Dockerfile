@@ -1,5 +1,4 @@
 FROM ubuntu:latest
-MAINTAINER Andrius Bacianskas "a.bacianskas@gmail.com"
 RUN apt-get update \
   && apt-get install -y python3-pip python3-dev \
   && cd /usr/local/bin \

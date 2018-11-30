@@ -128,7 +128,7 @@ def delete_user(email: str, password: str) -> object:
     :returns: {'deleted': True} on success else {'error': 'Wrong password.'}
     """
     result = check_password(email, password)
-    if result['session_token']:
+    if 'session_token' in result:
         if userAdapter.delete_user(email):
             return {
                 'deleted': True
@@ -138,7 +138,9 @@ def delete_user(email: str, password: str) -> object:
                 'error': 'unknown error.'
             }  
     else:
-        return result
+        return {
+            'error': 'Wrong password.'
+        }
 
 def change_password(email:str, old_password: str, new_password: str) -> object:
     """
@@ -150,7 +152,7 @@ def change_password(email:str, old_password: str, new_password: str) -> object:
     {'error': 'Your old password is wrong.'}
     """
     # no need to check if email is correct, because user is already logged in
-    if check_password(email, old_password):
+    if 'session_token' in check_password(email, old_password):
         hash = generate_password_hash(new_password)
         response = userAdapter.set_user_password_hash(email, hash)
         if response:
@@ -166,19 +168,23 @@ def change_password(email:str, old_password: str, new_password: str) -> object:
             'error': 'Your old password is wrong.'
         }
 
-def request_reset_user(email: str) -> object:
+def request_reset_user(email: str) -> str:
     """
     Request a user reset with sending out a mail with a reset link to this users email  
     :param email: the users email  
-    :returns: True on success, False on Error
+    :returns: the response string to display in the frontend
     """
-    reset_token = generate_token()
-    if userAdapter.set_user_reset_token(email, reset_token):
+    if get_username(email):
+        reset_token = generate_token()
+        userAdapter.set_user_reset_token(email, reset_token)
         username = userAdapter.get_user_username(email)
         link = 'https://api.tracemap.info/auth/reset_password/%s/%s' % (email, reset_token)
-        return mailService.send_reset_mail(username, email, link)
+        if mailService.send_reset_mail(username, email, link):
+            return "A reset email was successfully sent to you."
+        else:
+            return "Something went wrong. Please try again later."
     else:
-        return False
+        return "This email is not registered."
 
 
 def reset_password(email: str, reset_token: str) -> str:
