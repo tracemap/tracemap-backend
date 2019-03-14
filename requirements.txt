@@ -1,6 +1,6 @@
 Flask
 flask_cors
-neo4j-driver
+neo4j
 pytest
 TwitterAPI
 uwsgi

@@ -10,7 +10,7 @@ class TracemapUserAdapter:
         uri = os.environ.get('NEO4J_URI')
         self.driver = GraphDatabase.driver(uri, auth=(os.environ.get('NEO4J_USER'),
         os.environ.get('NEO4J_PASSWORD')))
-
+    
     def __request_database(self, query: str) -> object:
         """
         Takes a query and returns the neo4j data response of that query  
@@ -31,6 +31,16 @@ class TracemapUserAdapter:
             'Neo.ClientError.Schema.ConstraintValidationFailed': 'Constraint Error'
         }.get(code, "unhandled error %s" % code)
 
+    def check_session(self, user_name: str, session_token: str) -> bool:
+        """
+        Gets the valid saved session_token from the database
+        and if it exists, compares it with the given session_token  
+        :param email: the users email
+        :param session_token: the input session_token
+        :returns: The boolean result of the check
+        """
+        db_session_token = self.get_user_session_token(user_name)
+        return db_session_token == session_token
 
     def get_user_status(self, email: str) -> object:
         """
