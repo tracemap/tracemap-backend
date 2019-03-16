@@ -1,5 +1,6 @@
 from neo4j import GraphDatabase, basic_auth
 from classes.users import User, TmUser
+from classes.tweets import Tweet, TraceMap
 from typing import List
 import json
 import time
@@ -29,33 +30,6 @@ class Neo4jApi:
             with session.begin_transaction() as transaction:
                 return transaction.run(cypher_statement, cypher_params).data()
 
-    def __build_lookup_dictionary(self, node_list) -> dict:
-        """
-        Creates a lookup map between Twitter uids and neo4j node ids.  
-        :param node_list: list of neo4j node objects  
-        :returns: a dictionary with tupels of node_ids and twitter user ids
-        """
-        result_dictionary = {}
-        for node in node_list:
-            result_dictionary.update({node.id:node.properties['uid']})
-        return result_dictionary
-
-    # """This function formats a property dictionary to insert it in a Cypher query"""
-    # def __format_property_string(self, property_dictionary):
-    #     if property_dictionary == {}:
-    #         return '{}'
-    #     property_string = '{'
-    #     for key in property_dictionary.keys():
-    #         value = property_dictionary[key]
-    #         property_string += key + ': '
-    #         if type(value) is str:
-    #             property_string += '"' + value + '", '
-    #         else:
-    #             property_string += str(value) + ', '
-    #     property_string = property_string[:-2]
-    #     property_string += '}'
-    #     return property_string
-
     def write_tweet(self, tweet_id: str) -> dict:
         """
         Create a new tweet node if it doesn't exist.  
@@ -76,9 +50,7 @@ class Neo4jApi:
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
-    def write_tm_user(
-        self, 
-        tmUser: TmUser) -> dict:
+    def write_tm_user(self, tmUser: TmUser) -> dict:
         """
         Create a new tracemap user or alter existing user to 
         tracemap user.  
@@ -96,10 +68,7 @@ class Neo4jApi:
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
-    def write_retweeters(
-        self,
-        tweet_id: str,
-        users: List[User]) -> dict:
+    def write_retweeters(self, tweet_id: str, users: List[User]) -> dict:
         """
         Add a list of retweeters to the tweet node with tweet_id.  
         :param tweet_id: the tweets id  
@@ -121,10 +90,7 @@ class Neo4jApi:
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
-    def write_author(
-        self,
-        tweet_id: str,
-        author: User) -> dict:
+    def write_author( self, tweet_id: str, author: User) -> dict:
         """
         Connect a tweet with a user node through an author relation.  
         :param tweet_id: the tweets id  
@@ -143,10 +109,7 @@ class Neo4jApi:
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
-    def write_tweet_request(
-        self,
-        tweet_id: str,
-        requester: TmUser) -> dict:
+    def write_tweet_request(self, tweet_id: str, requester: TmUser) -> dict:
         """
         Connect a TmUser with a Tweet through a requested relation. 
         This marks the tweet for the crawlers to retrieve the followship 
@@ -165,9 +128,28 @@ class Neo4jApi:
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
-    def get_tm_user(
-        self,
-        user_id: str) -> TmUser:
+    def write_user_followships(self, source_id: dict, targets: list) -> dict:
+        """
+        Add a list of :FOLLOWS relations between users in the database.  
+        :param source_id: the source user (user following the list of users) id.  
+        :param targets: a list of target ids for the :FOLLOWS relation.
+        """
+        time_now = str(int(time.time()))
+        cypher_statement = """
+        MATCH (source:User{id:{source_id}}) 
+        WITH {targets} AS targets, source 
+        UNWIND targets as target_id 
+        MERGE (source)-[f:FOLLOWS]->(:User{id:target_id}) 
+        SET f.time = {time}
+        """
+        cypher_params = {
+            'source_id': source_id, 
+            'targets': targets, 
+            'time': time_now}
+        self.__request_database(cypher_statement, cypher_params)
+        return {'success': True}
+
+    def get_tm_user(self, user_id: str) -> TmUser:
         """
         Get the registered TmUser by id.  
         :param id: the users id
@@ -182,96 +164,51 @@ class Neo4jApi:
             return None
         else:
             user_dict = result[0]['data']
-            return TmUser(
-                user_dict['id'], 
-                user_dict['auth_token'], 
-                user_dict['auth_secret'], 
-                user_dict['session_token'])
+            return TmUser( user_dict)
 
-# """This function gets all relations in the database between a set of users"""
-# def get_followers(user_ids):
-#     followers_dictionary = {}
-#     database_query = ''
-#     first_iteration = True
-#     if len(user_ids) <= 1:
-#         return followers_dictionary
-#     for uid in user_ids:
-#         if first_iteration:
-#             database_query += 'MATCH (u:USER) WHERE u.uid = "' + uid + '" '
-#             first_iteration = False
-#             continue
-#         database_query += 'OR u.uid = "' + uid + '" '
-#     database_query += 'WITH COLLECT(u) AS us UNWIND us AS u1 UNWIND us AS u2 '
-#     database_query += 'MATCH (u1)-[r]->(u2) RETURN COLLECT(r), us;'
-#     database_response = self.__request_database(database_query)
-#     if database_response == []:
-#         return followers_dictionary
-#     dictionary_lookup = self.__build_lookup_dictionary(database_response[0]['us'])
-#     for relation in database_response[0]['COLLECT(r)']:
-#         user = dictionary_lookup[relation.end]
-#         follower = dictionary_lookup[relation.start]
-#         if user not in followers_dictionary:
-#             followers_dictionary.update({user:[follower]})
-#         else:
-#             followers_dictionary[user].append(follower)
-#     return followers_dictionary
+    def get_tweet_data(self, tweet_id: str, time_limit: str='') -> Tweet:
+        """
+        Get the tweet object with all connected nodes (except requested). 
+        The optional time_limit limits the returned retweeters to those 
+        retweeted before time_limit.  
+        :param tweet_id: the tweets id
+        :param time_limit (optional): the time_limit timestring
+        """
+        cypher_statement = """
+        MATCH (tweet:Tweet{id:{tweet_id}})<-[retweeted:RETWEETED]-(retweeter:User), 
+        (tweet:Tweet{id:'847112'})<-[authored:AUTHORED]-(author:User) 
+        WITH tweet, {time: retweeted.time, id: retweeter.id} as retweets, 
+        {time: authored.time, id: author.id} as author 
+        RETURN {id: tweet.id, last_updated: tweet.last_updated, retweeters: collect(retweets), author: author} as data 
+        """
+        cypher_params = {'tweet_id': tweet_id}
+        result = self.__request_database(cypher_statement, cypher_params)
+        if result == []:
+            return None
+        else:
+            data = result[0]['data']
+            data['author'] = User(data['author'])
+            if time_limit:
+                time_limit = float(time_limit)
+                data['retweeters'] = list(filter(lambda x: float(x['time']) < time_limit, data['retweeters']))
+            data['retweeters'] = list(map(lambda x: User(x), data['retweeters']))
+            return Tweet(data)
 
-
-# """This function does not create new nodes, users must be in database already"""
-# def add_user_info(user_info):
-#     if 'response' not in user_info.keys():
-#         """The user_info dictionary does not contain the 'response' key..."""
-#         return False
-#     success = True
-#     for user_id in user_info['response'].keys():
-#         database_query = 'MATCH (user:USER {uid: "'+user_id+'"}) ' +\
-#             'SET user += ' +\
-#             __format_property_string(user_info['response'][user_id]) + ' ' +\
-#             'RETURN user'
-#         database_response = __request_database(database_query)
-#         if database_response == []:
-#             """So far, it does not check if info was written correctly"""
-#             success = False
-#     return success
-
-
-# """This function gets info of ONE user per time from the database"""
-# def get_user_info(user_id):
-#     database_query = 'MATCH (user:USER {uid: "'+user_id+'"}) ' +\
-#         'RETURN user'
-#     database_response = __request_database(database_query)
-#     """Just to be on the safe side"""
-#     if len(database_response) == 0:
-#         return {}
-#     return {user_id:database_response[0]['user'].properties}
-
-
-# def label_unknown_users(user_ids):
-#     time_now = math.floor(time.time())
-#     three_month = 60 * 60 * 24 * 90
-
-#     query = "WITH %s AS USERS " % user_ids
-#     query += "FOREACH (U IN USERS | MERGE (X:USER{uid:U}) "
-#     query += "FOREACH (ignoreMe in CASE WHEN (X:PRIORITY2 OR "
-#     query += "(X:PRIORITY3 AND X.timestamp < %s) OR " % (time_now - three_month)
-#     query += "LABELS(X)=['USER']) "
-#     query += "THEN [1] ELSE [] END | "
-#     query += "SET X:PRIORITY1 REMOVE X:PRIORITY2, X:PRIORITY3))"
-#     __request_database(query)
-
-#     query2 = "WITH %s AS USERS " % user_ids
-#     query2 += "MATCH (u:PRIORITY1) "
-#     query2 += "WHERE u.uid IN USERS "
-#     query2 += "RETURN COLLECT(u.uid) as uncrawled"
-#     uncrawled = __request_database(query2)[0]["uncrawled"]
-
-#     query2 = "WITH %s AS USERS " % user_ids
-#     query2 += "MATCH (u:QUEUED) "
-#     query2 += "WHERE u.uid IN USERS "
-#     query2 += "RETURN COLLECT(u.uid) as unwritten"
-#     unwritten = __request_database(query2)[0]["unwritten"]
-
-#     return {
-#         "uncrawled": uncrawled,
-#         "unwritten": unwritten
-#     }
+    def get_user_followships(self, tweet_id: str) -> list:
+        """
+        Get the followship paths between the retweeters & author of a tweet.  
+        :param tweet_id: str
+        """
+        cypher_statement = """
+        MATCH (:Tweet{id:{id}})<-[:AUTHORED|:RETWEETED]-(user:User) 
+        WITH COLLECT(user.id) as user_ids
+        MATCH (target:User)<-[:FOLLOWS]-(source:User) 
+        WHERE target.id IN user_ids AND source.id IN user_ids
+        RETURN COLLECT({target: target.id, source: source.id}) as data
+        """
+        cypher_params = {'id': tweet_id}
+        result = self.__request_database(cypher_statement, cypher_params)
+        if result == []:
+            return None
+        else:
+            return result[0]['data']
