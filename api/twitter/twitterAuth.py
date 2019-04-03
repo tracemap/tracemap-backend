@@ -14,7 +14,7 @@ consumer_key = os.environ.get('APP_TOKEN')
 consumer_secret = os.environ.get('APP_SECRET')
 callback_url = os.environ.get('CALLBACK_URL')
 
-request_token_url = f'https://api.twitter.com/oauth/request_token?{callback_url}&x_auth_access_type=read'
+request_token_url = f'https://api.twitter.com/oauth/request_token?oauth_callback={callback_url}&x_auth_access_type=read'
 access_token_url = 'https://api.twitter.com/oauth/access_token'
 authorize_url = 'https://api.twitter.com/oauth/authorize'
 
