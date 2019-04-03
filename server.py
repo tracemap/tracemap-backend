@@ -210,21 +210,21 @@ def make_json(in_data) -> str:
 #     else:
 #         return Response("Bad Request", status=400)
 
-# @app.route('/newsletter/start_subscription', methods = ['POST'])
-# def newsletter_start_subscription():
-#     body = request.get_json()
-#     if body and all (keys in body for keys in 
-#     ("email", "newsletter_subscribed", "beta_subscribed")):
-#         email = body['email']
-#         newsletter_subscribed = body['newsletter_subscribed']
-#         beta_subscribed = body['beta_subscribed']
-#         return jsonify(newsletterModule.start_save_subscriber(email, newsletter_subscribed, beta_subscribed))
-#     else:
-#         return Response("Bad Request", status=400)
+@app.route('/newsletter/start_subscription', methods = ['POST'])
+def newsletter_start_subscription():
+    body = request.get_json()
+    if body and all (keys in body for keys in 
+    ("email", "newsletter_subscribed", "beta_subscribed")):
+        email = body['email']
+        newsletter_subscribed = body['newsletter_subscribed']
+        beta_subscribed = body['beta_subscribed']
+        return jsonify(newsletterModule.start_save_subscriber(email, newsletter_subscribed, beta_subscribed))
+    else:
+        return Response("Bad Request", status=400)
 
-# @app.route('/newsletter/confirm_subscription/<string:email>/<string:confirmation_token>')
-# def newsletter_confirm_subscription(email:str, confirmation_token: str):
-#     return newsletterModule.save_subscriber(email, confirmation_token)
+@app.route('/newsletter/confirm_subscription/<string:email>/<string:confirmation_token>')
+def newsletter_confirm_subscription(email:str, confirmation_token: str):
+    return newsletterModule.save_subscriber(email, confirmation_token)
 
 # @app.route('/logging/write_log', methods = ['POST'])
 # def logging_write_log():
