@@ -3,18 +3,19 @@ import time
 import os
 
 from TwitterAPI import TwitterAPI
+from classes.users import TmUser
 
 
 class TracemapTwitterApi:
 
-    def __init__(self, user_token: str, user_secret: str):
+    def __init__(self, user: TmUser):
         app_token = os.environ.get('APP_TOKEN')
         app_secret = os.environ.get('APP_SECRET')
         self.api = TwitterAPI(
                 app_token,
                 app_secret,
-                user_token,
-                user_secret)
+                user.auth_token,
+                user.auth_secret)
 
     def __request_twitter(self, route: str, params: dict, route_extension: str = "") -> dict:
         while True:

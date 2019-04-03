@@ -1,11 +1,13 @@
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
+import json
 
 from elasticapm.contrib.flask import ElasticAPM
 
 from api.neo4j.neo4jApi import Neo4jApi
 import api.logging.logger as logger
 
+import api.twitter.twitterAuth as twitterAuth
 from api.twitter.twitterApi import TracemapTwitterApi
 from api.neo4j.tracemapUserAdapter import TracemapUserAdapter
 import api.user.newsletterModule as newsletterModule
@@ -40,10 +42,58 @@ def health_check():
     """Request health status of the api"""
     return Response("OK", status=200)
 
+@app.route('/twitter/start_authenticate', methods = ['GET'])
+def twitter_start_authenticate():
+    return jsonify(twitterAuth.start_authentication())
+
+@app.route('/twitter/complete_authenticate', methods = ['POST'])
+def twitter_complete_authenticate():
+    """
+    Returns the users username on successful authentication.
+    """
+    body = request.get_json()
+    if body and all (keys in body for keys in 
+    ("oauth_token", "oauth_verifier")):
+        oauth_token = body['oauth_token']
+        oauth_verifier = body['oauth_verifier']
+        return jsonify(twitterAuth.complete_authentication(oauth_token, oauth_verifier))
+    else:
+        return Response("Bad Request", status=400)
+
+@app.route('/twitter/check_session', methods = ['POST'])
+def twitter_check_session():
+    """
+    Compares a session_token with the database users session_tokens 
+    and returns the users credential if token matches
+    """
+    body = request.get_json()
+    if body and all (keys in body for keys in
+    ("user_id", "session_token")):
+        user_id = body['user_id']
+        session_token = body['session_token']
+        return jsonify(twitterAuth.check_session_token(user_id, session_token))
+    else:
+        return Response("Bad Request", status=400)
+    
+
+@app.route('/add_me')
+def add_me():
+    user_dict = {}
+    user_dict['auth_token'] = '795585054831443968-oUFJaTgfLKyQ1mOVaskWGSQyv6BQOJk' 
+    user_dict['auth_secret'] = 'pUUuZfIHNG8NaEVZu0Xe1HhBgMLRn2JpSgAsutuQxIlkU'
+    user_dict['id'] = '795585054831443968'
+    user_dict['session_token'] = 'not-set'
+    tm_user = TmUser(user_dict)
+    return make_json(neo4jApi.write_tm_user(tm_user))
+
+
 @app.route('/test', methods=['GET'])
 def test_something():
-    author = TmUser('27841902', '21784902412941','34789141204','1398124012')
-    return neo4jApi.get_tm_user(author.id)
+    tweet_id = '847112'
+    return make_json(neo4jApi.get_tweet_data(tweet_id))
+
+def make_json(in_data) -> str:
+    return json.dumps(in_data, default=lambda o: o.__dict__ if hasattr(o, '__dict__') else o)
 
 # @app.route('/twitter/get_tweet_info', methods = ['POST'])
 # def twitter_get_tweet_info():

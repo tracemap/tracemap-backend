@@ -50,6 +50,49 @@ class Neo4jApi:
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
+    def write_oauth_user(self, data: dict) -> dict:
+        """
+        Save the oauth credentials of a login request  
+        :param data: the dict holding oauth_token and oauth_token_secret
+        """
+        cypher_statement = """
+        CREATE (user:Auth)
+        SET user = {props}
+        """
+        cypher_params = {'props': data}
+        self.__request_database(cypher_statement, cypher_params)
+        return {'success': True}
+
+    def get_oauth_user_secret(self, oauth_token: str) -> object:
+        """
+        Search the :Auth user with the given oauth_token 
+        and return this users oauth_token_secret.  
+        :param oauth_token: The users oauth_token
+        """
+        cypher_statement = """
+        MATCH (user:Auth{oauth_token:{oauth_token}}) 
+        RETURN {oauth_token_secret: user.oauth_token_secret} as data
+        """
+        cypher_params = {'oauth_token': oauth_token}
+        result = self.__request_database(cypher_statement, cypher_params)
+        if result == []:
+            return None
+        else:
+            return result[0]['data']
+
+    def delete_oauth_user(self, oauth_token: str) -> object:
+        """
+        Search the :Auth user node and delete it.  
+        :param oauth_token: the users request token
+        """
+        cypher_statement = """
+        MATCH (u:Auth{oauth_token:{oauth_token}})  
+        DETACH DELETE u
+        """
+        cypher_params = {'oauth_token': oauth_token}
+        self.__request_database(cypher_statement, cypher_params)
+        return {'success': True}
+
     def write_tm_user(self, tmUser: TmUser) -> dict:
         """
         Create a new tracemap user or alter existing user to 
@@ -60,11 +103,11 @@ class Neo4jApi:
         :param session_token: the users session_token from browser storage
         """
         cypher_statement = """
-        MERGE (user:User{id:{id}}) 
+        MERGE (user:User{user_id:{user_id}}) 
         SET user = {props} 
         SET user:TmUser
         """
-        cypher_params = {'id': tmUser.id, 'props': tmUser.__dict__}
+        cypher_params = {'user_id': tmUser.user_id, 'props': tmUser.__dict__}
         self.__request_database(cypher_statement, cypher_params)
         return {'success': True}
 
@@ -155,8 +198,8 @@ class Neo4jApi:
         :param id: the users id
         """
         cypher_statement = """
-        MATCH (u:TmUser) 
-        RETURN properties(u) as data
+        MATCH (user:TmUser{user_id:{user_id}}) 
+        RETURN properties(user) as data
         """
         cypher_params = {'user_id': user_id}
         result = self.__request_database(cypher_statement, cypher_params)

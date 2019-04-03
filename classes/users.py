@@ -1,10 +1,10 @@
 class User(object):
     """
     Basic Twitter user class.  
-    :attr id: twitter user id  
+    :attr user_id: twitter user id  
     """
     def __init__(self, data: dict):
-        self.id = data['id']
+        self.user_id = data['user_id']
         if 'time' in data:
             self.set_time(data['time'])
 
@@ -26,6 +26,7 @@ class TmUser(User):
     """
     def __init__(self, data: dict):
         super().__init__(data)
-        self.auth_token = data['auth_token']
-        self.auth_secret = data['auth_secret']
+        self.oauth_token = data['oauth_token']
+        self.oauth_token_secret = data['oauth_token_secret']
         self.session_token = data['session_token']
+        self.screen_name = data['screen_name']

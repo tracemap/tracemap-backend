@@ -7,3 +7,4 @@ uwsgi
 sty
 werkzeug
 elastic-apm[flask]
+oauth2
