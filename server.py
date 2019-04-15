@@ -20,22 +20,12 @@ app = Flask(__name__)
 # apm = ElasticAPM(app, logging=True)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-# def __get_tracemap_twitter_api(user_name: str, session_token: str) -> TracemapTwitterApi:
-#     user_credentials = neo4jApi.get_user_twitter_auth(user_name, session_token)
-#     if user_credentials:
-#         return TracemapTwitterApi(
-#             user_credentials['user_token'],
-#             user_credentials['user_secret'])
-#     else:
-#         return None
-
-# def __is_session_valid(user_name: str, session_token: str) -> bool:
-#     """
-#     compare used session_token with the one
-#     saved in the database
-#     """
-#     return userAdapter.check_session(user_name, session_token)
-
+def __get_tracemap_twitter_api(user_id: str, session_token: str) -> TracemapTwitterApi:
+    tm_user = neo4jApi.get_tm_user(user_id)
+    if tm_user.session_token == session_token:
+        return TracemapTwitterApi(tm_user)
+    else:
+        return None
 
 @app.route('/status')
 def health_check():
@@ -68,10 +58,10 @@ def twitter_check_session():
     """
     body = request.get_json()
     if body and all (keys in body for keys in
-    ("user_id", "session_token")):
-        user_id = body['user_id']
-        session_token = body['session_token']
-        return jsonify(twitterAuth.check_session_token(user_id, session_token))
+    ("auth_user_id", "auth_session_token")):
+        auth_user_id = body['auth_user_id']
+        auth_session_token = body['auth_session_token']
+        return jsonify(twitterAuth.check_session_token(auth_user_id, auth_session_token))
     else:
         return Response("Bad Request", status=400)
     
@@ -95,86 +85,86 @@ def test_something():
 def make_json(in_data) -> str:
     return json.dumps(in_data, default=lambda o: o.__dict__ if hasattr(o, '__dict__') else o)
 
-# @app.route('/twitter/get_tweet_info', methods = ['POST'])
-# def twitter_get_tweet_info():
-#     """
-#     Returns shortform of twitter_get_tweet_data
-#     to get e.g. the number of retweets for a tweet
-#     """
-#     body = request.get_json()
-#     if body and all (keys in body for keys in 
-#     ("session_token","email", "tweet_id")):
-#         session_token = body['session_token']
-#         email = body['email']
-#         tweet_id = body['tweet_id']
-#         twitterApi = __get_tracemap_twitter_api(email, session_token)
-#         if twitterApi:
-#             return jsonify(twitterApi.get_tweet_info(tweet_id))
-#         else:
-#             return Response("Forbidden", status=403)
-#     else:
-#         return Response("Bad Request", status=400)
+@app.route('/twitter/get_tweet_info', methods = ['POST'])
+def twitter_get_tweet_info():
+    """
+    Returns shortform of twitter_get_tweet_data
+    to get e.g. the number of retweets for a tweet
+    """
+    body = request.get_json()
+    if body and all (keys in body for keys in 
+    ("auth_session_token","auth_user_id", "tweet_id")):
+        auth_session_token = body['auth_session_token']
+        auth_user_id = body['auth_user_id']
+        tweet_id = body['tweet_id']
+        twitterApi = __get_tracemap_twitter_api(auth_user_id, auth_session_token)
+        if twitterApi:
+            return jsonify(twitterApi.get_tweet_info(tweet_id))
+        else:
+            return Response("Forbidden", status=403)
+    else:
+        return Response("Bad Request", status=400)
 
-# @app.route('/twitter/get_tweet_data', methods = ['POST'])
-# def twitter_get_tweet_data():
-#     """
-#     Returns data of a tweet to get the detailed
-#     tweet data (retweeter_ids etc.)
-#     """
-#     body = request.get_json()
-#     if body and all (keys in body for keys in 
-#     ("session_token","email", "tweet_id")):
-#         session_token = body['session_token']
-#         email = body['email']
-#         tweet_id = body['tweet_id']
-#         twitterApi = __get_tracemap_twitter_api(email, session_token)
-#         if twitterApi:
-#             return jsonify(twitterApi.get_tweet_data(tweet_id))
-#         else:
-#             return Response("Forbidden", status=403)
-#     else:
-#         return Response("Bad Request", status=400)
+@app.route('/twitter/get_tweet_data', methods = ['POST'])
+def twitter_get_tweet_data():
+    """
+    Returns data of a tweet to get the detailed
+    tweet data (retweeter_ids etc.)
+    """
+    body = request.get_json()
+    if body and all (keys in body for keys in 
+    ("auth_session_token","auth_user_id", "tweet_id")):
+        auth_session_token = body['auth_session_token']
+        auth_user_id = body['auth_user_id']
+        tweet_id = body['tweet_id']
+        twitterApi = __get_tracemap_twitter_api(auth_user_id, auth_session_token)
+        if twitterApi:
+            return jsonify(twitterApi.get_tweet_data(tweet_id))
+        else:
+            return Response("Forbidden", status=403)
+    else:
+        return Response("Bad Request", status=400)
         
 
-# @app.route('/twitter/get_user_timeline', methods = ['POST'])
-# def twitter_get_user_timeline():
-#     """
-#     Takes a user_id and returns the last 200
-#     tweets/retweets of this user
-#     """
-#     body = request.get_json()
-#     if body and all (keys in body for keys in 
-#     ("session_token","email", "user_id")):
-#         session_token = body['session_token']
-#         email = body['email']
-#         user_id = body['user_id']
-#         twitterApi = __get_tracemap_twitter_api(email, session_token)
-#         if twitterApi:
-#             return jsonify(twitterApi.get_user_timeline(user_id))
-#         else:
-#             return Response("Forbidden", status=403)
-#     else:
-#         return Response("Bad Request", status=400)
+@app.route('/twitter/get_user_timeline', methods = ['POST'])
+def twitter_get_user_timeline():
+    """
+    Takes a user_id and returns the last 200
+    tweets/retweets of this user
+    """
+    body = request.get_json()
+    if body and all (keys in body for keys in 
+    ("auth_session_token","auth_user_id", "user_id")):
+        auth_session_token = body['auth_session_token']
+        auth_user_id = body['auth_user_id']
+        user_id = body['user_id']
+        twitterApi = __get_tracemap_twitter_api(auth_user_id, auth_session_token)
+        if twitterApi:
+            return jsonify(twitterApi.get_user_timeline(user_id))
+        else:
+            return Response("Forbidden", status=403)
+    else:
+        return Response("Bad Request", status=400)
 
-# @app.route('/twitter/get_user_info', methods = ['POST'])
-# def twitter_get_user_info():
-#     """
-#     Takes a comma seperated list of user_ids
-#     returns a user_info json object
-#     """
-#     body = request.get_json()
-#     if body and all (keys in body for keys in 
-#     ("session_token","email", "user_ids")):
-#         session_token = body['session_token']
-#         email = body['email']
-#         user_ids = body['user_ids']
-#         twitterApi = __get_tracemap_twitter_api(email, session_token)
-#         if twitterApi:
-#             return jsonify(twitterApi.get_user_infos(user_ids))
-#         else:
-#             return Response("Forbidden", status=403)
-#     else:
-#         return Response("Bad Request", status=400)
+@app.route('/twitter/get_user_info', methods = ['POST'])
+def twitter_get_user_info():
+    """
+    Takes a comma seperated list of user_ids
+    returns a user_info json object
+    """
+    body = request.get_json()
+    if body and all (keys in body for keys in 
+    ("auth_session_token","auth_user_id", "user_ids")):
+        auth_session_token = body['auth_session_token']
+        auth_user_id = body['auth_user_id'] 
+        user_ids = body['user_ids']
+        twitterApi = __get_tracemap_twitter_api(auth_user_id, auth_session_token)
+        if twitterApi:
+            return jsonify(twitterApi.get_user_infos(user_ids))
+        else:
+            return Response("Forbidden", status=403)
+    else:
+        return Response("Bad Request", status=400)
 
 # @app.route('/neo4j/get_followers', methods = ['POST'])
 # def neo4j_get_followers():
@@ -185,7 +175,7 @@ def make_json(in_data) -> str:
 #     body = request.get_json()
 #     if body and all (keys in body for keys in 
 #     ("session_token","email", "user_ids")):
-#         session_token = body['session_token']
+#         session_token = body['auth_session_token']
 #         email = body['email']
 #         user_ids = body['user_ids']
 #         if __is_session_valid(email, session_token):
@@ -200,7 +190,7 @@ def make_json(in_data) -> str:
 #     body = request.get_json()
 #     if body and all (keys in body for keys in 
 #     ("session_token","email", "user_ids")):
-#         session_token = body['session_token']
+#         session_token = body['auth_session_token']
 #         email = body['email']
 #         user_ids = body['user_ids']
 #         if __is_session_valid(email, session_token):

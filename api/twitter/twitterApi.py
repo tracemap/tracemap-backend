@@ -14,8 +14,8 @@ class TracemapTwitterApi:
         self.api = TwitterAPI(
                 app_token,
                 app_secret,
-                user.auth_token,
-                user.auth_secret)
+                user.oauth_token,
+                user.oauth_token_secret)
 
     def __request_twitter(self, route: str, params: dict, route_extension: str = "") -> dict:
         while True:
@@ -26,7 +26,6 @@ class TracemapTwitterApi:
                 time.sleep(10)
                 continue
             parsed_response = response.json()
-            print(parsed_response)
             error_response = self.__check_error(parsed_response)
             if error_response:
                 return {
